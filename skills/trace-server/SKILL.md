@@ -173,6 +173,6 @@ trace-server status
 
 **"Session not found":** Run `trace-server sessions` to see loaded sessions. Session IDs are the first 8 chars of the file hash.
 
-**Query timeout:** Increase with `--timeout <ms>`. Default is 5000ms. For large traces, complex queries may need 10-30 seconds.
+**Query timeout:** Increase with `--timeout <ms>`. Default is 30000ms. For large traces, complex queries may need longer.
 
 **Large trace loading slow:** Gzipped traces (`.json.gz`) decompress on load. A 300MB trace may take 2-5 seconds to parse initially, but all subsequent queries are fast.
