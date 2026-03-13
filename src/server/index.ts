@@ -1,9 +1,12 @@
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "fs";
+import { dirname } from "path";
 import { ADT_DIR, PID_FILE, SOCKET_PATH } from "../shared/constants";
 import type { ServerInfo } from "../shared/types";
 import { handleRequest } from "./router";
 
 mkdirSync(ADT_DIR, { recursive: true });
+mkdirSync(dirname(SOCKET_PATH), { recursive: true });
+mkdirSync(dirname(PID_FILE), { recursive: true });
 
 if (existsSync(SOCKET_PATH)) {
   try {
