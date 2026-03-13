@@ -33,7 +33,8 @@ export function formatDurationMs(value: number): string {
   }
 
   if (value >= 1000) {
-    return `${value.toFixed(value >= 10_000 ? 0 : 1)}s`;
+    const seconds = value / 1000;
+    return `${seconds.toFixed(seconds >= 10 ? 0 : 1)}s`;
   }
 
   if (value >= 100) {
