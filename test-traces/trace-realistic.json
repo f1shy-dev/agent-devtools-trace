@@ -1,0 +1,4992 @@
+{
+  "metadata": {
+    "source": "synthetic-fixture",
+    "startTime": "2026-01-15T10:00:00.000Z"
+  },
+  "traceEvents": [
+    {
+      "cat": "__metadata",
+      "name": "process_name",
+      "ph": "M",
+      "pid": 1,
+      "tid": 0,
+      "ts": 0,
+      "args": {
+        "name": "Renderer"
+      }
+    },
+    {
+      "cat": "__metadata",
+      "name": "thread_name",
+      "ph": "M",
+      "pid": 1,
+      "tid": 1,
+      "ts": 0,
+      "args": {
+        "name": "CrRendererMain"
+      }
+    },
+    {
+      "cat": "__metadata",
+      "name": "thread_name",
+      "ph": "M",
+      "pid": 1,
+      "tid": 2,
+      "ts": 0,
+      "args": {
+        "name": "Compositor"
+      }
+    },
+    {
+      "cat": "__metadata",
+      "name": "thread_name",
+      "ph": "M",
+      "pid": 1,
+      "tid": 3,
+      "ts": 0,
+      "args": {
+        "name": "CompositorTileWorker"
+      }
+    },
+    {
+      "cat": "__metadata",
+      "name": "process_name",
+      "ph": "M",
+      "pid": 2,
+      "tid": 0,
+      "ts": 0,
+      "args": {
+        "name": "Browser"
+      }
+    },
+    {
+      "cat": "__metadata",
+      "name": "thread_name",
+      "ph": "M",
+      "pid": 2,
+      "tid": 1,
+      "ts": 0,
+      "args": {
+        "name": "CrBrowserMain"
+      }
+    },
+    {
+      "cat": "__metadata",
+      "name": "thread_name",
+      "ph": "M",
+      "pid": 2,
+      "tid": 2,
+      "ts": 0,
+      "args": {
+        "name": "IOThread"
+      }
+    },
+    {
+      "cat": "__metadata",
+      "name": "process_name",
+      "ph": "M",
+      "pid": 3,
+      "tid": 0,
+      "ts": 0,
+      "args": {
+        "name": "GPU Process"
+      }
+    },
+    {
+      "cat": "__metadata",
+      "name": "thread_name",
+      "ph": "M",
+      "pid": 3,
+      "tid": 1,
+      "ts": 0,
+      "args": {
+        "name": "CrGpuMain"
+      }
+    },
+    {
+      "cat": "__metadata",
+      "name": "thread_name",
+      "ph": "M",
+      "pid": 3,
+      "tid": 2,
+      "ts": 0,
+      "args": {
+        "name": "VizCompositorThread"
+      }
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1000000,
+      "dur": 5000
+    },
+    {
+      "cat": "loading,devtools.timeline",
+      "name": "NavigationStart",
+      "ph": "I",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1000000,
+      "args": {
+        "data": {
+          "url": "https://example.com/"
+        }
+      },
+      "s": "t"
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 1000000,
+      "dur": 2000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 1000000,
+      "dur": 4000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 1005000,
+      "dur": 3000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1010000,
+      "dur": 3000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 1010000,
+      "dur": 3000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 1015000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1025000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1050000,
+      "dur": 10000
+    },
+    {
+      "cat": "loading",
+      "name": "ResourceSendRequest",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1050000,
+      "dur": 1000,
+      "args": {
+        "data": {
+          "requestId": "net-1",
+          "url": "https://example.com/",
+          "requestMethod": "GET",
+          "priority": "VeryHigh",
+          "resourceType": "Document",
+          "initiator": {
+            "type": "parser",
+            "url": "https://example.com"
+          }
+        }
+      }
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 1050000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1060000,
+      "dur": 7000
+    },
+    {
+      "cat": "disabled-by-default-v8.source_rundown",
+      "name": "ScriptCatchup",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1060000,
+      "dur": 5000,
+      "args": {
+        "data": {
+          "sourceUrl": "https://example.com/app.js",
+          "sourceMapUrl": "https://example.com/app.js.map"
+        }
+      }
+    },
+    {
+      "cat": "disabled-by-default-v8.source_rundown",
+      "name": "ScriptCatchup",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1070000,
+      "dur": 3000,
+      "args": {
+        "data": {
+          "sourceUrl": "https://example.com/vendor.js",
+          "sourceMapUrl": "https://example.com/vendor.js.map"
+        }
+      }
+    },
+    {
+      "cat": "disabled-by-default-v8.source_rundown",
+      "name": "ScriptCatchup",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1080000,
+      "dur": 2000,
+      "args": {
+        "data": {
+          "sourceUrl": "https://example.com/utils.js"
+        }
+      }
+    },
+    {
+      "cat": "disabled-by-default-v8.source_rundown",
+      "name": "ScriptCatchup",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1090000,
+      "dur": 4000,
+      "args": {
+        "data": {
+          "sourceUrl": "https://cdn.example.com/lib.js",
+          "sourceMapUrl": "https://cdn.example.com/lib.js.map"
+        }
+      }
+    },
+    {
+      "cat": "disabled-by-default-v8.source_rundown",
+      "name": "ScriptCatchup",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1095000,
+      "dur": 1000,
+      "args": {
+        "data": {
+          "sourceUrl": "https://example.com/polyfill.js"
+        }
+      }
+    },
+    {
+      "cat": "disabled-by-default-devtools.screenshot",
+      "name": "Screenshot",
+      "ph": "O",
+      "pid": 1,
+      "tid": 0,
+      "ts": 1100000,
+      "args": {
+        "snapshot": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB/8AACwgAAQABAQERAP/EABQAAQAAAAAAAAAAAAAAAAAAAAD/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAA/AHtAAAAA/9k="
+      }
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1100000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1105000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1120000,
+      "dur": 9000
+    },
+    {
+      "cat": "loading",
+      "name": "ResourceReceiveResponse",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1120000,
+      "dur": 1000,
+      "args": {
+        "data": {
+          "requestId": "net-1",
+          "statusCode": 200,
+          "mimeType": "text/html",
+          "fromCache": false
+        }
+      }
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1150000,
+      "dur": 120000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 1167000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 1167000,
+      "dur": 6000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 1172000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1180000,
+      "dur": 11000
+    },
+    {
+      "cat": "loading",
+      "name": "ResourceFinish",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1180000,
+      "dur": 1000,
+      "args": {
+        "data": {
+          "requestId": "net-1",
+          "encodedDataLength": 15000,
+          "decodedBodyLength": 45000
+        }
+      }
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1200000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1200000,
+      "dur": 8000
+    },
+    {
+      "cat": "loading",
+      "name": "ResourceSendRequest",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1200000,
+      "dur": 1000,
+      "args": {
+        "data": {
+          "requestId": "net-2",
+          "url": "https://example.com/app.js",
+          "requestMethod": "GET",
+          "priority": "High",
+          "resourceType": "Script",
+          "initiator": {
+            "type": "parser",
+            "url": "https://example.com"
+          }
+        }
+      }
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1210000,
+      "dur": 12000
+    },
+    {
+      "cat": "loading",
+      "name": "ResourceSendRequest",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1210000,
+      "dur": 1000,
+      "args": {
+        "data": {
+          "requestId": "net-3",
+          "url": "https://example.com/styles.css",
+          "requestMethod": "GET",
+          "priority": "VeryHigh",
+          "resourceType": "Stylesheet",
+          "initiator": {
+            "type": "parser",
+            "url": "https://example.com"
+          }
+        }
+      }
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1220000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1240000,
+      "dur": 13000
+    },
+    {
+      "cat": "loading",
+      "name": "ResourceSendRequest",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1250000,
+      "dur": 1000,
+      "args": {
+        "data": {
+          "requestId": "net-5",
+          "url": "https://example.com/logo.png",
+          "requestMethod": "GET",
+          "priority": "Low",
+          "resourceType": "Image",
+          "initiator": {
+            "type": "parser",
+            "url": "https://example.com"
+          }
+        }
+      }
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 1250000,
+      "dur": 10000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 1260000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1265000,
+      "dur": 17000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 1265000,
+      "dur": 7000
+    },
+    {
+      "cat": "loading",
+      "name": "ResourceReceiveResponse",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1280000,
+      "dur": 1000,
+      "args": {
+        "data": {
+          "requestId": "net-5",
+          "statusCode": 304,
+          "mimeType": "image/png",
+          "fromCache": true
+        }
+      }
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1295000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1300000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1300000,
+      "dur": 6000
+    },
+    {
+      "cat": "loading",
+      "name": "ResourceReceiveResponse",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1300000,
+      "dur": 1000,
+      "args": {
+        "data": {
+          "requestId": "net-3",
+          "statusCode": 200,
+          "mimeType": "text/css",
+          "fromCache": false
+        }
+      }
+    },
+    {
+      "cat": "loading",
+      "name": "ResourceFinish",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1320000,
+      "dur": 1000,
+      "args": {
+        "data": {
+          "requestId": "net-5",
+          "encodedDataLength": 0,
+          "decodedBodyLength": 0
+        }
+      }
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 1334000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 1334000,
+      "dur": 8000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 1339000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1340000,
+      "dur": 8000
+    },
+    {
+      "cat": "loading",
+      "name": "ResourceReceiveResponse",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1350000,
+      "dur": 1000,
+      "args": {
+        "data": {
+          "requestId": "net-2",
+          "statusCode": 200,
+          "mimeType": "application/javascript",
+          "fromCache": false
+        }
+      }
+    },
+    {
+      "cat": "blink.user_timing",
+      "name": "MarkDOMContent",
+      "ph": "I",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1350000,
+      "args": {
+        "data": {
+          "url": "https://example.com/"
+        }
+      },
+      "s": "t"
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "MarkDOMContent",
+      "ph": "I",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1355000,
+      "args": {
+        "data": {}
+      },
+      "s": "t"
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1360000,
+      "dur": 17000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1360000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1370000,
+      "dur": 14000
+    },
+    {
+      "cat": "loading",
+      "name": "ResourceFinish",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1380000,
+      "dur": 1000,
+      "args": {
+        "data": {
+          "requestId": "net-3",
+          "encodedDataLength": 12000,
+          "decodedBodyLength": 48000
+        }
+      }
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1390000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1400000,
+      "dur": 5000
+    },
+    {
+      "cat": "blink.user_timing",
+      "name": "MarkFirstPaint",
+      "ph": "I",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1400000,
+      "args": {
+        "data": {}
+      },
+      "s": "t"
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "MarkFirstPaint",
+      "ph": "I",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1405000,
+      "args": {
+        "data": {}
+      },
+      "s": "t"
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1420000,
+      "dur": 5000
+    },
+    {
+      "cat": "loading",
+      "name": "firstContentfulPaint",
+      "ph": "I",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1420000,
+      "args": {
+        "data": {}
+      },
+      "s": "t"
+    },
+    {
+      "cat": "loading",
+      "name": "firstMeaningfulPaint",
+      "ph": "I",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1450000,
+      "args": {
+        "data": {}
+      },
+      "s": "t"
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 1450000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1460000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1460000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1480000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1485000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1500000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1500000,
+      "dur": 85000,
+      "args": {
+        "data": {
+          "url": "https://example.com/bundle.js"
+        }
+      }
+    },
+    {
+      "cat": "loading",
+      "name": "ResourceFinish",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1500000,
+      "dur": 1000,
+      "args": {
+        "data": {
+          "requestId": "net-2",
+          "encodedDataLength": 85000,
+          "decodedBodyLength": 250000
+        }
+      }
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 1501000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 1501000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1505000,
+      "dur": 19000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 1506000,
+      "dur": 9000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 1510000,
+      "dur": 7000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 1515000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1520000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1530000,
+      "dur": 16000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1540000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1580000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1580000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1600000,
+      "dur": 11000
+    },
+    {
+      "cat": "blink.user_timing",
+      "name": "MarkLoad",
+      "ph": "I",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1600000,
+      "args": {
+        "data": {
+          "url": "https://example.com/"
+        }
+      },
+      "s": "t"
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "MarkLoad",
+      "ph": "I",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1610000,
+      "args": {
+        "data": {}
+      },
+      "s": "t"
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1620000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1640000,
+      "dur": 7000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 1650000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1660000,
+      "dur": 13000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 1668000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 1668000,
+      "dur": 12000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 1673000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1675000,
+      "dur": 3000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1680000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1690000,
+      "dur": 18000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1700000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1720000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1740000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1745000,
+      "dur": 21000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 1760000,
+      "dur": 9000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 1765000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1770000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1780000,
+      "dur": 17000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1780000,
+      "dur": 12000
+    },
+    {
+      "cat": "loading",
+      "name": "largestContentfulPaint::Candidate",
+      "ph": "I",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1800000,
+      "args": {
+        "data": {
+          "size": 15000
+        }
+      },
+      "s": "t"
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1820000,
+      "dur": 16000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 1835000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 1835000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1840000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1840000,
+      "dur": 16000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 1840000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1850000,
+      "dur": 20000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 1850000,
+      "dur": 16000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1865000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1880000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1900000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1940000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1940000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1960000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1960000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1980000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 1985000,
+      "dur": 23000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2000000,
+      "dur": 18000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 2002000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 2002000,
+      "dur": 16000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 2007000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2010000,
+      "dur": 22000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 2010000,
+      "dur": 11000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 2015000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2020000,
+      "dur": 11000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 2050000,
+      "dur": 18000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2055000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2060000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2080000,
+      "dur": 13000
+    },
+    {
+      "cat": "disabled-by-default-devtools.screenshot",
+      "name": "Screenshot",
+      "ph": "O",
+      "pid": 1,
+      "tid": 0,
+      "ts": 2100000,
+      "args": {
+        "snapshot": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB/8AACwgAAQABAQERAP/EABQAAQAAAAAAAAAAAAAAAAAAAAD/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAA/AHtAAAAA/9k="
+      }
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2100000,
+      "dur": 16000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2120000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2140000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2150000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2160000,
+      "dur": 20000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 2169000,
+      "dur": 2000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 2169000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2170000,
+      "dur": 10000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 2174000,
+      "dur": 3000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2180000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2200000,
+      "dur": 17000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2200000,
+      "dur": 200000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2220000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2225000,
+      "dur": 25000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2245000,
+      "dur": 15000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 2250000,
+      "dur": 20000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2260000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2260000,
+      "dur": 18000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 2260000,
+      "dur": 13000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 2265000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2300000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2320000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2320000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2330000,
+      "dur": 12000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 2336000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 2336000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2340000,
+      "dur": 3000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 2341000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2360000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2380000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2420000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2420000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2435000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2440000,
+      "dur": 11000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 2450000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2460000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2465000,
+      "dur": 27000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2480000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2490000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2500000,
+      "dur": 13000
+    },
+    {
+      "cat": "loading",
+      "name": "ResourceSendRequest",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2500000,
+      "dur": 1000,
+      "args": {
+        "data": {
+          "requestId": "net-4",
+          "url": "https://api.example.com/data",
+          "requestMethod": "POST",
+          "priority": "High",
+          "resourceType": "XHR",
+          "initiator": {
+            "type": "parser",
+            "url": "https://example.com"
+          }
+        }
+      }
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 2503000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 2503000,
+      "dur": 8000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 2508000,
+      "dur": 7000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 2510000,
+      "dur": 15000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 2515000,
+      "dur": 17000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2530000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2540000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2560000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2580000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2600000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2620000,
+      "dur": 17000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2625000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2640000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2650000,
+      "dur": 16000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 2650000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2660000,
+      "dur": 16000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 2670000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 2670000,
+      "dur": 10000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 2675000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2680000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2700000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2705000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2720000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2740000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2740000,
+      "dur": 10000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 2760000,
+      "dur": 3000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 2765000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2780000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2800000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2800000,
+      "dur": 14000
+    },
+    {
+      "cat": "loading",
+      "name": "ResourceReceiveResponse",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2800000,
+      "dur": 1000,
+      "args": {
+        "data": {
+          "requestId": "net-4",
+          "statusCode": 201,
+          "mimeType": "application/json",
+          "fromCache": false
+        }
+      }
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2810000,
+      "dur": 18000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2815000,
+      "dur": 13000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 2837000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 2837000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2840000,
+      "dur": 17000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 2842000,
+      "dur": 11000
+    },
+    {
+      "cat": "loading",
+      "name": "ResourceFinish",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2850000,
+      "dur": 1000,
+      "args": {
+        "data": {
+          "requestId": "net-4",
+          "encodedDataLength": 2000,
+          "decodedBodyLength": 8000
+        }
+      }
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 2850000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2860000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2900000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2900000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2910000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2920000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2940000,
+      "dur": 16000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2945000,
+      "dur": 17000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2960000,
+      "dur": 16000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2970000,
+      "dur": 20000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 2980000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3000000,
+      "dur": 75000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 3004000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 3004000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3005000,
+      "dur": 3000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 3009000,
+      "dur": 13000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 3010000,
+      "dur": 5000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 3015000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3020000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3040000,
+      "dur": 17000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 3050000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3060000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3080000,
+      "dur": 5000
+    },
+    {
+      "cat": "disabled-by-default-devtools.screenshot",
+      "name": "Screenshot",
+      "ph": "O",
+      "pid": 1,
+      "tid": 0,
+      "ts": 3100000,
+      "args": {
+        "snapshot": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB/8AACwgAAQABAQERAP/EABQAAQAAAAAAAAAAAAAAAAAAAAD/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAA/AHtAAAAA/9k="
+      }
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3100000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3100000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3120000,
+      "dur": 18000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3130000,
+      "dur": 22000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3140000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3160000,
+      "dur": 7000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 3171000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 3171000,
+      "dur": 16000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 3176000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3180000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3185000,
+      "dur": 19000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3195000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3220000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3220000,
+      "dur": 16000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 3250000,
+      "dur": 16000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3260000,
+      "dur": 12000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 3260000,
+      "dur": 7000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 3265000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3280000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3280000,
+      "dur": 20000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3290000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3290000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3320000,
+      "dur": 7000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 3338000,
+      "dur": 2000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 3338000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3340000,
+      "dur": 13000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 3343000,
+      "dur": 3000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3380000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3380000,
+      "dur": 18000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3385000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3400000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3420000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3425000,
+      "dur": 21000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3440000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3450000,
+      "dur": 12000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 3450000,
+      "dur": 18000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3460000,
+      "dur": 17000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3480000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3500000,
+      "dur": 16000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3500000,
+      "dur": 150000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 3505000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 3505000,
+      "dur": 6000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 3510000,
+      "dur": 5000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 3510000,
+      "dur": 9000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 3515000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3520000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3540000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3560000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3575000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3580000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3600000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3610000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3620000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3640000,
+      "dur": 9000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 3650000,
+      "dur": 20000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3660000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3665000,
+      "dur": 23000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3670000,
+      "dur": 3000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 3672000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 3672000,
+      "dur": 8000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 3677000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3700000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3700000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3740000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3760000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3760000,
+      "dur": 12000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 3760000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3765000,
+      "dur": 5000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 3765000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3770000,
+      "dur": 16000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3800000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3820000,
+      "dur": 15000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 3839000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 3839000,
+      "dur": 10000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 3844000,
+      "dur": 9000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 3850000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3860000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3860000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3860000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3880000,
+      "dur": 17000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3900000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3905000,
+      "dur": 25000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3920000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3930000,
+      "dur": 18000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3940000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3955000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 3980000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4000000,
+      "dur": 7000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 4006000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 4006000,
+      "dur": 12000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 4010000,
+      "dur": 13000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 4011000,
+      "dur": 11000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 4015000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4020000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4040000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4050000,
+      "dur": 11000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 4050000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4060000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4080000,
+      "dur": 16000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4090000,
+      "dur": 20000
+    },
+    {
+      "cat": "disabled-by-default-devtools.screenshot",
+      "name": "Screenshot",
+      "ph": "O",
+      "pid": 1,
+      "tid": 0,
+      "ts": 4100000,
+      "args": {
+        "snapshot": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB/8AACwgAAQABAQERAP/EABQAAQAAAAAAAAAAAAAAAAAAAAD/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAA/AHtAAAAA/9k="
+      }
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4100000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4120000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4140000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4145000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4145000,
+      "dur": 27000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 4173000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 4173000,
+      "dur": 14000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 4178000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4180000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4180000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4220000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4240000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4240000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4240000,
+      "dur": 18000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4250000,
+      "dur": 22000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 4250000,
+      "dur": 12000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 4260000,
+      "dur": 15000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 4265000,
+      "dur": 17000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4280000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4300000,
+      "dur": 17000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4335000,
+      "dur": 3000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4340000,
+      "dur": 16000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4340000,
+      "dur": 16000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 4340000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 4340000,
+      "dur": 16000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 4345000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4360000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4380000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4385000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4400000,
+      "dur": 20000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4410000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4420000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4430000,
+      "dur": 5000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 4450000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4460000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4480000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4500000,
+      "dur": 18000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4500000,
+      "dur": 95000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 4507000,
+      "dur": 2000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 4507000,
+      "dur": 4000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 4510000,
+      "dur": 3000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 4512000,
+      "dur": 3000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 4515000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4520000,
+      "dur": 17000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4525000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4540000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4560000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4570000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4580000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4600000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4620000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4620000,
+      "dur": 16000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4625000,
+      "dur": 17000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 4650000,
+      "dur": 16000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4660000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4660000,
+      "dur": 6000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 4674000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 4674000,
+      "dur": 6000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 4679000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4700000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4715000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4720000,
+      "dur": 17000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4720000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4730000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4760000,
+      "dur": 5000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 4760000,
+      "dur": 5000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 4765000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4780000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4810000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4820000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4820000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4840000,
+      "dur": 7000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 4841000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 4841000,
+      "dur": 8000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 4846000,
+      "dur": 7000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 4850000,
+      "dur": 18000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4860000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4865000,
+      "dur": 19000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4880000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4890000,
+      "dur": 16000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4900000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4905000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4940000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4960000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 4980000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5000000,
+      "dur": 3000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5000000,
+      "dur": 7000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 5008000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 5008000,
+      "dur": 10000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 5010000,
+      "dur": 7000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 5013000,
+      "dur": 9000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 5015000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5020000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5040000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5050000,
+      "dur": 18000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 5050000,
+      "dur": 20000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5060000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5080000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5095000,
+      "dur": 5000
+    },
+    {
+      "cat": "disabled-by-default-devtools.screenshot",
+      "name": "Screenshot",
+      "ph": "O",
+      "pid": 1,
+      "tid": 0,
+      "ts": 5100000,
+      "args": {
+        "snapshot": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB/8AACwgAAQABAQERAP/EABQAAQAAAAAAAAAAAAAAAAAAAAD/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAA/AHtAAAAA/9k="
+      }
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5100000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5105000,
+      "dur": 21000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5140000,
+      "dur": 17000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5140000,
+      "dur": 12000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 5175000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 5175000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5180000,
+      "dur": 16000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 5180000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5190000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5200000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5200000,
+      "dur": 16000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5200000,
+      "dur": 65000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5210000,
+      "dur": 20000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5240000,
+      "dur": 9000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 5250000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5260000,
+      "dur": 7000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 5260000,
+      "dur": 9000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 5265000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5285000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5300000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5300000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5320000,
+      "dur": 9000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5340000,
+      "dur": 8000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 5342000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 5342000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5345000,
+      "dur": 23000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 5347000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5360000,
+      "dur": 18000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5370000,
+      "dur": 22000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5380000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5380000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5420000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5440000,
+      "dur": 13000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 5450000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5460000,
+      "dur": 16000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5475000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5480000,
+      "dur": 11000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5500000,
+      "dur": 15000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 5509000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 5509000,
+      "dur": 16000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 5510000,
+      "dur": 11000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 5514000,
+      "dur": 15000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 5515000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5520000,
+      "dur": 20000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5530000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5540000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5560000,
+      "dur": 17000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5570000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5580000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "ParseHTML",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5585000,
+      "dur": 25000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5620000,
+      "dur": 5000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5620000,
+      "dur": 18000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 5650000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5660000,
+      "dur": 10000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "FunctionCall",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5665000,
+      "dur": 3000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 5676000,
+      "dur": 2000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 5676000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5680000,
+      "dur": 7000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5680000,
+      "dur": 8000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 5681000,
+      "dur": 3000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EvaluateScript",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5690000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5720000,
+      "dur": 13000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5740000,
+      "dur": 9000
+    },
+    {
+      "cat": "gpu",
+      "name": "GPUTask",
+      "ph": "X",
+      "pid": 3,
+      "tid": 1,
+      "ts": 5760000,
+      "dur": 13000
+    },
+    {
+      "cat": "viz",
+      "name": "DrawFrame",
+      "ph": "X",
+      "pid": 3,
+      "tid": 2,
+      "ts": 5765000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RecalculateStyles",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5780000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5780000,
+      "dur": 6000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5820000,
+      "dur": 12000
+    },
+    {
+      "cat": "devtools.timeline,layout",
+      "name": "Layout",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5840000,
+      "dur": 10000
+    },
+    {
+      "cat": "cc,benchmark",
+      "name": "BeginFrame",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 5843000,
+      "dur": 4000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "RunTask",
+      "ph": "X",
+      "pid": 2,
+      "tid": 1,
+      "ts": 5843000,
+      "dur": 6000
+    },
+    {
+      "cat": "cc",
+      "name": "CompositeLayers",
+      "ph": "X",
+      "pid": 1,
+      "tid": 2,
+      "ts": 5848000,
+      "dur": 5000
+    },
+    {
+      "cat": "cc",
+      "name": "RasterTask",
+      "ph": "X",
+      "pid": 1,
+      "tid": 3,
+      "ts": 5850000,
+      "dur": 14000
+    },
+    {
+      "cat": "devtools.timeline,paint",
+      "name": "Paint",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5940000,
+      "dur": 8000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "EventDispatch",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 5960000,
+      "dur": 15000
+    },
+    {
+      "cat": "devtools.timeline",
+      "name": "TimerFire",
+      "ph": "X",
+      "pid": 1,
+      "tid": 1,
+      "ts": 6060000,
+      "dur": 14000
+    }
+  ]
+}

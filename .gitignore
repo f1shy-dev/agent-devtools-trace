@@ -2,4 +2,10 @@ node_modules/
 dist/
 *.log
 .DS_Store
+
+# Test traces - keep compressed versions, exclude uncompressed (except fixtures)
+test-traces/*.json
+!test-traces/trace-minimal.json
+!test-traces/trace-full.json
+!test-traces/trace-realistic.json
 test-traces/large-trace.json.gz

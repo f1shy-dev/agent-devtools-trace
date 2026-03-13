@@ -1,0 +1,42 @@
+import { defineCommand } from "citty";
+import { TraceServerClient } from "../client";
+import { handleCommandError } from "../errors";
+import { ensureServer } from "../lifecycle";
+
+export default defineCommand({
+  meta: { description: "Execute TypeScript code against a loaded trace" },
+  args: {
+    session: { type: "positional", description: "Session ID", required: true },
+    code: { type: "positional", description: "TypeScript code to execute" },
+    file: { type: "string", alias: "f", description: "Read code from file instead" },
+    timeout: { type: "string", alias: "t", description: "Timeout in ms" },
+  },
+  async run({ args }) {
+    try {
+      await ensureServer();
+      const client = new TraceServerClient();
+
+      let code = args.code;
+      if (args.file) {
+        code = await Bun.file(args.file).text();
+      }
+      if (!code) {
+        console.error("Error: provide code as argument or via --file/-f");
+        process.exit(1);
+      }
+
+      const timeout = args.timeout ? Number.parseInt(args.timeout, 10) : undefined;
+      const result = await client.query(args.session, code, timeout);
+
+      if (result.truncated) {
+        console.warn("⚠ Result was truncated (exceeded 10MB)");
+      }
+      console.log(
+        typeof result.result === "string" ? result.result : JSON.stringify(result.result, null, 2),
+      );
+      console.error(`(${result.duration}ms)`);
+    } catch (error) {
+      handleCommandError(error);
+    }
+  },
+});
