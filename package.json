@@ -1,7 +1,33 @@
 {
-  "name": "trace-server",
+  "name": "@vishyfishy2/trace-server",
   "version": "0.1.0",
   "type": "module",
+  "description": "Load-once, query-many server for Chrome DevTools performance traces. Built for AI agents.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/f1shy-dev/agent-devtools-trace.git"
+  },
+  "keywords": [
+    "devtools",
+    "trace",
+    "chrome",
+    "performance",
+    "agent",
+    "cli",
+    "bun"
+  ],
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
   "bin": {
     "trace-server": "./src/cli/index.ts"
   },
@@ -11,7 +37,8 @@
     "fmt": "oxfmt --write src/",
     "fmt:check": "oxfmt --check src/",
     "typecheck": "npx @typescript/native-preview",
-    "test": "vitest"
+    "test": "vitest",
+    "prepublishOnly": "bun run typecheck"
   },
   "devDependencies": {
     "@types/bun": "^1.3.0",

@@ -31,10 +31,10 @@ This is especially useful for AI agents that need to iteratively explore a trace
 
 ```bash
 # Global install
-bun add -g trace-server
+bun add -g @vishyfishy2/trace-server
 
 # Project-local install
-bun add -D trace-server
+bun add -D @vishyfishy2/trace-server
 ```
 
 From source:
