@@ -1,6 +1,17 @@
+import vm from "node:vm";
 import ts from "typescript";
-import { DEFAULT_QUERY_TIMEOUT } from "../shared/constants";
+import { DEFAULT_QUERY_TIMEOUT, MAX_RESULT_SIZE } from "../shared/constants";
 import type { Session } from "../shared/types";
+
+export class QueryTimeoutError extends Error {
+  readonly timeout: number;
+
+  constructor(timeout: number) {
+    super(`Query timed out after ${timeout}ms`);
+    this.name = "QueryTimeoutError";
+    this.timeout = timeout;
+  }
+}
 
 function transpile(source: string): string {
   const bunRuntime = globalThis.Bun;
@@ -16,23 +27,44 @@ function transpile(source: string): string {
   }).outputText;
 }
 
-function buildQueryFunction(code: string, mode: "expression" | "statements") {
+export function serializeResult(result: any): { serialized: string; truncated: boolean } {
+  let str: string;
+  try {
+    str = JSON.stringify(result, null, 2);
+  } catch {
+    str = String(result);
+  }
+
+  if (typeof str !== "string") {
+    str = "null";
+  }
+
+  if (str.length > MAX_RESULT_SIZE) {
+    return {
+      serialized: str.slice(0, MAX_RESULT_SIZE),
+      truncated: true,
+    };
+  }
+
+  return { serialized: str, truncated: false };
+}
+
+function buildQueryScript(code: string, mode: "expression" | "statements"): vm.Script {
   const wrappedCode =
     mode === "expression"
-      ? `return (async () => { return (${code}); })();`
-      : `return (async () => { ${code} })();`;
+      ? `
+        (async () => {
+          return (${code});
+        })()
+      `
+      : `
+        (async () => {
+          ${code}
+        })()
+      `;
   const jsCode = transpile(wrappedCode);
 
-  return new Function(
-    "trace",
-    "events",
-    "metadata",
-    "byCategory",
-    "byName",
-    "byThread",
-    "byPhase",
-    jsCode,
-  );
+  return new vm.Script(jsCode);
 }
 
 export async function executeQuery(
@@ -45,25 +77,61 @@ export async function executeQuery(
   const metadata = trace.metadata;
   const { byCategory, byName, byThread, byPhase } = indexes;
 
-  let fn: Function;
+  let script: vm.Script;
   try {
-    fn = buildQueryFunction(code, "expression");
+    script = buildQueryScript(code, "expression");
   } catch (error) {
     if (!(error instanceof SyntaxError)) {
       throw error;
     }
-    fn = buildQueryFunction(code, "statements");
+    script = buildQueryScript(code, "statements");
   }
 
-  const timer = new Promise((_, reject) => {
-    const timeoutId = setTimeout(() => {
-      reject(new Error(`Query timed out after ${timeout}ms`));
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timer = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new QueryTimeoutError(timeout));
     }, timeout);
     timeoutId.unref?.();
   });
 
-  return Promise.race([
-    Promise.resolve(fn(trace, events, metadata, byCategory, byName, byThread, byPhase)),
-    timer,
-  ]);
+  try {
+    const context = {
+      trace,
+      events,
+      metadata,
+      byCategory,
+      byName,
+      byThread,
+      byPhase,
+      Buffer,
+      console,
+      performance,
+      setTimeout,
+      clearTimeout,
+      setInterval,
+      clearInterval,
+    };
+    let result: unknown;
+    try {
+      result = script.runInNewContext(context, { timeout });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        /Script execution timed out|timed out after/i.test(error.message)
+      ) {
+        throw new QueryTimeoutError(timeout);
+      }
+      throw error;
+    }
+
+    return await Promise.race([
+      Promise.resolve(result),
+      timer,
+    ]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
 }

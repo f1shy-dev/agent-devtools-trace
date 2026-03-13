@@ -1,8 +1,14 @@
 import { existsSync } from "fs";
 import { resolve } from "path";
 import { loadTrace } from "../loader";
-import { DEFAULT_QUERY_TIMEOUT, MAX_RESULT_SIZE } from "../shared/constants";
-import { executeQuery } from "./query-engine";
+import { DEFAULT_QUERY_TIMEOUT } from "../shared/constants";
+import { getCategories } from "./heuristics/categories";
+import { getLongTasks } from "./heuristics/long-tasks";
+import { getNetwork } from "./heuristics/network";
+import { extractScreenshots, getScreenshotImage, getScreenshots } from "./heuristics/screenshots";
+import { getSummary } from "./heuristics/summary";
+import { getThreads } from "./heuristics/threads";
+import { executeQuery, QueryTimeoutError, serializeResult } from "./query-engine";
 import { sessionManager } from "./sessions";
 
 function json(data: unknown, status = 200): Response {
@@ -13,36 +19,16 @@ function json(data: unknown, status = 200): Response {
 }
 
 async function readJson(req: Request): Promise<Record<string, any>> {
+  const text = await req.text();
+  if (text.length === 0) {
+    return {};
+  }
+
   try {
-    return (await req.json()) as Record<string, any>;
+    return JSON.parse(text) as Record<string, any>;
   } catch {
     throw new Error("Invalid JSON body");
   }
-}
-
-function serializeResult(result: unknown): { value: unknown; truncated: boolean } {
-  let serialized: string;
-  try {
-    serialized = JSON.stringify(result);
-  } catch {
-    serialized = JSON.stringify(String(result));
-  }
-
-  if (typeof serialized !== "string") {
-    serialized = "null";
-  }
-
-  if (Buffer.byteLength(serialized) > MAX_RESULT_SIZE) {
-    return {
-      value: `${serialized.slice(0, MAX_RESULT_SIZE)}...<truncated>`,
-      truncated: true,
-    };
-  }
-
-  return {
-    value: JSON.parse(serialized),
-    truncated: false,
-  };
 }
 
 function formatSession(
@@ -147,7 +133,10 @@ async function handleQuery(sessionId: string, req: Request): Promise<Response> {
   }
 
   const code = body.code;
-  const timeout = typeof body.timeout === "number" ? body.timeout : DEFAULT_QUERY_TIMEOUT;
+  const timeout =
+    typeof body.timeout === "number" && Number.isFinite(body.timeout) && body.timeout > 0
+      ? body.timeout
+      : DEFAULT_QUERY_TIMEOUT;
   if (typeof code !== "string" || code.length === 0) {
     return json({ error: "code is required" }, 400);
   }
@@ -158,7 +147,7 @@ async function handleQuery(sessionId: string, req: Request): Promise<Response> {
     const duration = Math.round(performance.now() - start);
     const serialized = serializeResult(result);
     return json({
-      result: serialized.value,
+      result: serialized.serialized,
       duration,
       truncated: serialized.truncated,
     });
@@ -168,7 +157,7 @@ async function handleQuery(sessionId: string, req: Request): Promise<Response> {
         error: error instanceof Error ? error.message : String(error),
         duration: Math.round(performance.now() - start),
       },
-      400,
+      error instanceof QueryTimeoutError ? 408 : 400,
     );
   }
 }
@@ -207,6 +196,51 @@ export async function handleRequest(req: Request): Promise<Response> {
   const queryMatch = pathname.match(/^\/sessions\/([^/]+)\/query$/);
   if (queryMatch && method === "POST") {
     return handleQuery(queryMatch[1], req);
+  }
+
+  const heuristicMatch = pathname.match(/^\/sessions\/([^/]+)\/(\w[\w-]*)(?:\/(.+))?$/);
+  if (heuristicMatch && method === "GET") {
+    const [, id, endpoint, subpath] = heuristicMatch;
+    const session = sessionManager.get(id);
+    if (!session) {
+      return json({ error: `Session not found: ${id}` }, 404);
+    }
+
+    switch (endpoint) {
+      case "summary":
+        return json(await getSummary(session));
+      case "categories":
+        return json(await getCategories(session));
+      case "threads":
+        return json(await getThreads(session));
+      case "network":
+        return json(await getNetwork(session));
+      case "long-tasks":
+        return json(await getLongTasks(session, url.searchParams));
+      case "screenshots":
+        if (subpath) {
+          return getScreenshotImage(session, Number.parseInt(subpath, 10));
+        }
+        return json(await getScreenshots(session));
+      default:
+        break;
+    }
+  }
+
+  if (heuristicMatch && method === "POST") {
+    const [, id, endpoint, subpath] = heuristicMatch;
+    const session = sessionManager.get(id);
+    if (!session) {
+      return json({ error: `Session not found: ${id}` }, 404);
+    }
+
+    if (endpoint === "screenshots" && subpath === "extract") {
+      try {
+        return json(await extractScreenshots(session, await readJson(req)));
+      } catch (error) {
+        return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+      }
+    }
   }
 
   if (method === "POST" && pathname === "/server/stop") {
