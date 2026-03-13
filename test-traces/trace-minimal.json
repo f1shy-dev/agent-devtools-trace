@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "source": "unit-test",
+    "startTime": "2026-03-13T00:00:00.000Z"
+  },
+  "traceEvents": [
+    {
+      "cat": "devtools.timeline,loading",
+      "name": "NavigationStart",
+      "ph": "I",
+      "pid": 100,
+      "tid": 200,
+      "ts": 1000,
+      "args": {
+        "data": {
+          "url": "https://example.com"
+        }
+      }
+    },
+    {
+      "cat": "disabled-by-default-devtools.screenshot",
+      "name": "Screenshot",
+      "ph": "O",
+      "pid": 100,
+      "tid": 200,
+      "ts": 1100,
+      "args": {
+        "snapshot": "abc123"
+      }
+    },
+    {
+      "cat": "loading",
+      "name": "ResourceSendRequest",
+      "ph": "X",
+      "pid": 100,
+      "tid": 201,
+      "ts": 1200,
+      "dur": 50,
+      "args": {
+        "data": {
+          "requestId": "1"
+        }
+      }
+    }
+  ]
+}

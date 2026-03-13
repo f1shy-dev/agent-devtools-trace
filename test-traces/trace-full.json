@@ -1,0 +1,25 @@
+[
+  {
+    "cat": "blink.user_timing",
+    "name": "mark_load_start",
+    "ph": "R",
+    "pid": 300,
+    "tid": 400,
+    "ts": 2000,
+    "args": {}
+  },
+  {
+    "cat": "devtools.timeline",
+    "name": "EvaluateScript",
+    "ph": "X",
+    "pid": 300,
+    "tid": 400,
+    "ts": 2100,
+    "dur": 125,
+    "args": {
+      "data": {
+        "url": "https://news.ycombinator.com"
+      }
+    }
+  }
+]
