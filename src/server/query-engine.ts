@@ -1,5 +1,4 @@
 import vm from "node:vm";
-import ts from "typescript";
 import { DEFAULT_QUERY_TIMEOUT, MAX_RESULT_SIZE } from "../shared/constants";
 import type { Session } from "../shared/types";
 
@@ -13,12 +12,14 @@ export class QueryTimeoutError extends Error {
   }
 }
 
-function transpile(source: string): string {
+async function transpile(source: string): Promise<string> {
   const bunRuntime = globalThis.Bun;
   if (bunRuntime) {
     return new bunRuntime.Transpiler({ loader: "ts" }).transformSync(source);
   }
 
+  // Lazy import — typescript is only needed when not running under Bun
+  const ts = await import("typescript").then(m => m.default ?? m);
   return ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.ESNext,
@@ -49,7 +50,7 @@ export function serializeResult(result: any): { serialized: string; truncated: b
   return { serialized: str, truncated: false };
 }
 
-function buildQueryScript(code: string, mode: "expression" | "statements"): vm.Script {
+async function buildQueryScript(code: string, mode: "expression" | "statements"): Promise<vm.Script> {
   const wrappedCode =
     mode === "expression"
       ? `
@@ -62,7 +63,7 @@ function buildQueryScript(code: string, mode: "expression" | "statements"): vm.S
           ${code}
         })()
       `;
-  const jsCode = transpile(wrappedCode);
+  const jsCode = await transpile(wrappedCode);
 
   return new vm.Script(jsCode);
 }
@@ -79,12 +80,9 @@ export async function executeQuery(
 
   let script: vm.Script;
   try {
-    script = buildQueryScript(code, "expression");
-  } catch (error) {
-    if (!(error instanceof SyntaxError)) {
-      throw error;
-    }
-    script = buildQueryScript(code, "statements");
+    script = await buildQueryScript(code, "expression");
+  } catch {
+    script = await buildQueryScript(code, "statements");
   }
 
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
