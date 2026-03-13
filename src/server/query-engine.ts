@@ -1,6 +1,16 @@
 import ts from "typescript";
-import { DEFAULT_QUERY_TIMEOUT } from "../shared/constants";
+import { DEFAULT_QUERY_TIMEOUT, MAX_RESULT_SIZE } from "../shared/constants";
 import type { Session } from "../shared/types";
+
+export class QueryTimeoutError extends Error {
+  readonly timeout: number;
+
+  constructor(timeout: number) {
+    super(`Query timed out after ${timeout}ms`);
+    this.name = "QueryTimeoutError";
+    this.timeout = timeout;
+  }
+}
 
 function transpile(source: string): string {
   const bunRuntime = globalThis.Bun;
@@ -14,6 +24,28 @@ function transpile(source: string): string {
       target: ts.ScriptTarget.ESNext,
     },
   }).outputText;
+}
+
+export function serializeResult(result: any): { serialized: string; truncated: boolean } {
+  let str: string;
+  try {
+    str = JSON.stringify(result, null, 2);
+  } catch {
+    str = String(result);
+  }
+
+  if (typeof str !== "string") {
+    str = "null";
+  }
+
+  if (str.length > MAX_RESULT_SIZE) {
+    return {
+      serialized: str.slice(0, MAX_RESULT_SIZE),
+      truncated: true,
+    };
+  }
+
+  return { serialized: str, truncated: false };
 }
 
 function buildQueryFunction(code: string, mode: "expression" | "statements") {
@@ -55,15 +87,22 @@ export async function executeQuery(
     fn = buildQueryFunction(code, "statements");
   }
 
-  const timer = new Promise((_, reject) => {
-    const timeoutId = setTimeout(() => {
-      reject(new Error(`Query timed out after ${timeout}ms`));
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timer = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new QueryTimeoutError(timeout));
     }, timeout);
     timeoutId.unref?.();
   });
 
-  return Promise.race([
-    Promise.resolve(fn(trace, events, metadata, byCategory, byName, byThread, byPhase)),
-    timer,
-  ]);
+  try {
+    return await Promise.race([
+      Promise.resolve(fn(trace, events, metadata, byCategory, byName, byThread, byPhase)),
+      timer,
+    ]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
