@@ -8,6 +8,11 @@ This directory contains various Chrome DevTools performance traces for testing `
 - **`trace-minimal.json`** (830B) — 3 events, used by unit tests
 - **`trace-full.json`** (393B) — 2 events in legacy array format, used by unit tests
 
+### Synthetic Fixtures
+- **`trace-realistic.json`** (~80KB) — ~500+ events exercising all heuristic endpoints (network, screenshots, long tasks, threads, categories)
+- **`trace-realistic.json.gz`** — gzipped version
+- **`generate-fixture.ts`** — Bun script to regenerate (`bun run test-traces/generate-fixture.ts`)
+
 ### Real Website Traces
 - **`reddit-scroll.json.gz`** (512KB) — Reddit homepage with scrolling (3.3MB uncompressed, 3-5 seconds)
 - **`bbc-news-navigation.json.gz`** (11.1MB) — BBC News homepage + article navigation (103MB uncompressed, full navigation flow)

@@ -24,6 +24,9 @@ export function getTraceBounds(events: TraceEvent[]): { minTs: number; maxTs: nu
   let maxTs = Number.NEGATIVE_INFINITY;
 
   for (const event of events) {
+    if (event.ph === "M" || event.ts <= 0) {
+      continue;
+    }
     const start = event.ts;
     const end = event.ts + (event.dur ?? 0);
     if (start < minTs) {
