@@ -19,7 +19,7 @@ bun add -g @vishyfishy2/trace-server
 # Verify installation
 if command -v trace-server &> /dev/null; then
   echo "trace-server installed successfully" >&2
-  trace-server status 2>&1 || true
+  trace-server status >&2 || true
   echo '{"success": true, "version": "0.1.0"}'
 else
   echo "Error: trace-server not found after installation" >&2
