@@ -96,7 +96,7 @@ trace-server query <session-id> 'events.filter(e => e.name === "Layout").length'
 # From a file
 trace-server query <session-id> --file analysis.ts
 
-# With timeout (default 5000ms)
+# With timeout (default 30000ms)
 trace-server query <session-id> 'expensiveAnalysis(events)' --timeout 10000
 ```
 
@@ -169,7 +169,7 @@ trace-server status
 
 ## Troubleshooting
 
-**Server won't start:** Check if port/socket is in use. The server uses a Unix socket at `~/.adt/server.sock`. Remove stale socket: `rm ~/.adt/server.sock`
+**Server won't start:** Check if port/socket is in use. The server uses a Unix socket at `~/.trace-server/server.sock`. Remove stale socket: `rm ~/.trace-server/server.sock`
 
 **"Session not found":** Run `trace-server sessions` to see loaded sessions. Session IDs are the first 8 chars of the file hash.
 
