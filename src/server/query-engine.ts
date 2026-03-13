@@ -1,3 +1,4 @@
+import vm from "node:vm";
 import ts from "typescript";
 import { DEFAULT_QUERY_TIMEOUT, MAX_RESULT_SIZE } from "../shared/constants";
 import type { Session } from "../shared/types";
@@ -48,23 +49,22 @@ export function serializeResult(result: any): { serialized: string; truncated: b
   return { serialized: str, truncated: false };
 }
 
-function buildQueryFunction(code: string, mode: "expression" | "statements") {
+function buildQueryScript(code: string, mode: "expression" | "statements"): vm.Script {
   const wrappedCode =
     mode === "expression"
-      ? `return (async () => { return (${code}); })();`
-      : `return (async () => { ${code} })();`;
+      ? `
+        (async () => {
+          return (${code});
+        })()
+      `
+      : `
+        (async () => {
+          ${code}
+        })()
+      `;
   const jsCode = transpile(wrappedCode);
 
-  return new Function(
-    "trace",
-    "events",
-    "metadata",
-    "byCategory",
-    "byName",
-    "byThread",
-    "byPhase",
-    jsCode,
-  );
+  return new vm.Script(jsCode);
 }
 
 export async function executeQuery(
@@ -77,14 +77,14 @@ export async function executeQuery(
   const metadata = trace.metadata;
   const { byCategory, byName, byThread, byPhase } = indexes;
 
-  let fn: Function;
+  let script: vm.Script;
   try {
-    fn = buildQueryFunction(code, "expression");
+    script = buildQueryScript(code, "expression");
   } catch (error) {
     if (!(error instanceof SyntaxError)) {
       throw error;
     }
-    fn = buildQueryFunction(code, "statements");
+    script = buildQueryScript(code, "statements");
   }
 
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -96,8 +96,37 @@ export async function executeQuery(
   });
 
   try {
+    const context = {
+      trace,
+      events,
+      metadata,
+      byCategory,
+      byName,
+      byThread,
+      byPhase,
+      Buffer,
+      console,
+      performance,
+      setTimeout,
+      clearTimeout,
+      setInterval,
+      clearInterval,
+    };
+    let result: unknown;
+    try {
+      result = script.runInNewContext(context, { timeout });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        /Script execution timed out|timed out after/i.test(error.message)
+      ) {
+        throw new QueryTimeoutError(timeout);
+      }
+      throw error;
+    }
+
     return await Promise.race([
-      Promise.resolve(fn(trace, events, metadata, byCategory, byName, byThread, byPhase)),
+      Promise.resolve(result),
       timer,
     ]);
   } finally {
