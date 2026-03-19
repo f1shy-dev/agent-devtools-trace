@@ -8,7 +8,13 @@ export class SessionManager {
 
   create(file: string, adapter: TraceAdapter, data: unknown, alias?: string): Session {
     const id = this.generateId();
-    const fileSizeBytes = statSync(file).size;
+    let fileSizeBytes = 0;
+    try {
+      const stat = statSync(file);
+      if (stat.isFile()) {
+        fileSizeBytes = stat.size;
+      }
+    } catch {}
     const memorySizeMB = Number((process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2));
     const session: Session = {
       id,

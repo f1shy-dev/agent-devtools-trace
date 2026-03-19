@@ -74,6 +74,23 @@ export class TraceServerClient {
     return this.request<SummaryResponse>("GET", `/sessions/${id}/summary`);
   }
 
+  routes(id: string) {
+    return this.request<any>("GET", `/sessions/${id}/routes`);
+  }
+
+  modules(id: string, route?: string, limit?: number) {
+    const params = new URLSearchParams();
+    if (route) params.set("route", route);
+    if (limit) params.set("limit", String(limit));
+    const query = params.toString();
+    return this.request<any>("GET", `/sessions/${id}/modules${query ? `?${query}` : ""}`);
+  }
+
+  sizes(id: string, route?: string) {
+    const query = route ? `?route=${encodeURIComponent(route)}` : "";
+    return this.request<any>("GET", `/sessions/${id}/sizes${query}`);
+  }
+
   async categories(id: string) {
     const result = await this.request<CategoriesResponse>("GET", `/sessions/${id}/categories`);
     return result.categories;
