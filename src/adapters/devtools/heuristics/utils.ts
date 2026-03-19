@@ -1,4 +1,5 @@
-import type { Session, TraceEvent } from "../../shared/types";
+import type { DevToolsData } from "..";
+import type { TraceEvent } from "../../../shared/types";
 
 export function getThreadKey(pid: number, tid: number): string {
   return `${pid}:${tid}`;
@@ -78,8 +79,8 @@ export function getThreadMetadata(events: TraceEvent[]): {
   return { threadNames, processNames };
 }
 
-export function getTraceStartTs(session: Session): number {
-  return getTraceBounds(session.trace.traceEvents).minTs;
+export function getTraceStartTs(data: DevToolsData): number {
+  return getTraceBounds(data.trace.traceEvents).minTs;
 }
 
 export function toPercentage(count: number, total: number): number {

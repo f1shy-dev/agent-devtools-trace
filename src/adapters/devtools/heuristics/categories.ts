@@ -1,4 +1,5 @@
-import type { Session } from "../../shared/types";
+import type { DevToolsData } from "..";
+import type { Session } from "../../../shared/types";
 import { toPercentage } from "./utils";
 
 interface CategoryInfo {
@@ -9,9 +10,12 @@ interface CategoryInfo {
   topNames: string[];
 }
 
-export async function getCategories(session: Session): Promise<{ categories: CategoryInfo[] }> {
-  const totalEvents = session.trace.traceEvents.length;
-  const categories = [...session.indexes.byCategory.entries()]
+export async function getCategories(
+  data: DevToolsData,
+  _session: Session,
+): Promise<{ categories: CategoryInfo[] }> {
+  const totalEvents = data.trace.traceEvents.length;
+  const categories = [...data.indexes.byCategory.entries()]
     .map(([category, events]) => {
       const phases: Record<string, number> = {};
       const nameCounts = new Map<string, number>();

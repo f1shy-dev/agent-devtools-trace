@@ -1,57 +1,28 @@
 import { randomBytes } from "crypto";
 import { statSync } from "fs";
-import type { ParsedTrace, Session, TraceEvent, TraceIndexes } from "../shared/types";
-
-export function buildIndexes(events: TraceEvent[]): TraceIndexes {
-  const byCategory = new Map<string, TraceEvent[]>();
-  const byName = new Map<string, TraceEvent[]>();
-  const byThread = new Map<string, TraceEvent[]>();
-  const byPhase = new Map<string, TraceEvent[]>();
-
-  for (const event of events) {
-    const cats = event.cat ? event.cat.split(",") : [""];
-    for (const cat of cats) {
-      const trimmed = cat.trim();
-      if (!byCategory.has(trimmed)) {
-        byCategory.set(trimmed, []);
-      }
-      byCategory.get(trimmed)!.push(event);
-    }
-
-    if (!byName.has(event.name)) {
-      byName.set(event.name, []);
-    }
-    byName.get(event.name)!.push(event);
-
-    const threadKey = `${event.pid}:${event.tid}`;
-    if (!byThread.has(threadKey)) {
-      byThread.set(threadKey, []);
-    }
-    byThread.get(threadKey)!.push(event);
-
-    if (!byPhase.has(event.ph)) {
-      byPhase.set(event.ph, []);
-    }
-    byPhase.get(event.ph)!.push(event);
-  }
-
-  return { byCategory, byName, byThread, byPhase };
-}
+import type { TraceAdapter } from "../shared/adapter";
+import type { Session } from "../shared/types";
 
 export class SessionManager {
   private readonly sessions = new Map<string, Session>();
 
-  create(file: string, trace: ParsedTrace, alias?: string): Session {
+  create(file: string, adapter: TraceAdapter, data: unknown, alias?: string): Session {
     const id = this.generateId();
-    const indexes = buildIndexes(trace.traceEvents);
-    const fileSizeBytes = statSync(file).size;
+    let fileSizeBytes = 0;
+    try {
+      const stat = statSync(file);
+      if (stat.isFile()) {
+        fileSizeBytes = stat.size;
+      }
+    } catch {}
     const memorySizeMB = Number((process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2));
     const session: Session = {
       id,
       file,
       alias,
-      trace,
-      indexes,
+      type: adapter.type,
+      data,
+      adapter,
       loadedAt: new Date(),
       fileSizeBytes,
       memorySizeMB,

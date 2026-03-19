@@ -2,12 +2,6 @@ import { existsSync } from "fs";
 import { resolve } from "path";
 import { loadTrace } from "../loader";
 import { DEFAULT_QUERY_TIMEOUT } from "../shared/constants";
-import { getCategories } from "./heuristics/categories";
-import { getLongTasks } from "./heuristics/long-tasks";
-import { getNetwork } from "./heuristics/network";
-import { extractScreenshots, getScreenshotImage, getScreenshots } from "./heuristics/screenshots";
-import { getSummary } from "./heuristics/summary";
-import { getThreads } from "./heuristics/threads";
 import { executeQuery, QueryTimeoutError, serializeResult } from "./query-engine";
 import { sessionManager } from "./sessions";
 
@@ -38,7 +32,8 @@ function formatSession(
     id: session.id,
     file: session.file,
     alias: session.alias,
-    events: session.trace.traceEvents.length,
+    type: session.type,
+    events: session.adapter.getItemCount(session.data),
     loadedAt: session.loadedAt.toISOString(),
     fileSizeBytes: session.fileSizeBytes,
     memorySizeMB: session.memorySizeMB,
@@ -75,10 +70,11 @@ async function handleLoadSession(req: Request): Promise<Response> {
   }
 
   try {
-    const trace = await loadTrace(resolved);
+    const { adapter, data } = await loadTrace(resolved);
     const session = sessionManager.create(
       resolved,
-      trace,
+      adapter,
+      data,
       typeof alias === "string" ? alias : undefined,
     );
     return json(
@@ -86,7 +82,8 @@ async function handleLoadSession(req: Request): Promise<Response> {
         sessionId: session.id,
         file: session.file,
         alias: session.alias,
-        events: session.trace.traceEvents.length,
+        type: session.type,
+        events: session.adapter.getItemCount(session.data),
         memorySizeMB: session.memorySizeMB,
       },
       201,
@@ -141,9 +138,14 @@ async function handleQuery(sessionId: string, req: Request): Promise<Response> {
     return json({ error: "code is required" }, 400);
   }
 
+  const queryOptions: Record<string, string> = {};
+  if (typeof body.route === "string") {
+    queryOptions.route = body.route;
+  }
+
   const start = performance.now();
   try {
-    const result = await executeQuery(session, code, timeout);
+    const result = await executeQuery(session, code, timeout, queryOptions);
     const duration = Math.round(performance.now() - start);
     const serialized = serializeResult(result);
     return json({
@@ -193,50 +195,37 @@ export async function handleRequest(req: Request): Promise<Response> {
     }
   }
 
-  const queryMatch = pathname.match(/^\/sessions\/([^/]+)\/query$/);
-  if (queryMatch && method === "POST") {
-    return handleQuery(queryMatch[1], req);
-  }
-
   const heuristicMatch = pathname.match(/^\/sessions\/([^/]+)\/(\w[\w-]*)(?:\/(.+))?$/);
-  if (heuristicMatch && method === "GET") {
+  if (heuristicMatch && (method === "GET" || method === "POST")) {
     const [, id, endpoint, subpath] = heuristicMatch;
-    const session = sessionManager.get(id);
-    if (!session) {
-      return json({ error: `Session not found: ${id}` }, 404);
-    }
+    if (endpoint === "query") {
+      if (method === "POST") {
+        return handleQuery(id, req);
+      }
+    } else {
+      const session = sessionManager.get(id);
+      if (!session) {
+        return json({ error: `Session not found: ${id}` }, 404);
+      }
 
-    switch (endpoint) {
-      case "summary":
-        return json(await getSummary(session));
-      case "categories":
-        return json(await getCategories(session));
-      case "threads":
-        return json(await getThreads(session));
-      case "network":
-        return json(await getNetwork(session));
-      case "long-tasks":
-        return json(await getLongTasks(session, url.searchParams));
-      case "screenshots":
-        if (subpath) {
-          return getScreenshotImage(session, Number.parseInt(subpath, 10));
-        }
-        return json(await getScreenshots(session));
-      default:
-        break;
-    }
-  }
+      const endpoints = session.adapter.getEndpoints();
+      const handler = endpoints.get(endpoint);
+      if (!handler) {
+        return json({ error: `Endpoint '${endpoint}' is not available for '${session.type}' sessions` }, 404);
+      }
 
-  if (heuristicMatch && method === "POST") {
-    const [, id, endpoint, subpath] = heuristicMatch;
-    const session = sessionManager.get(id);
-    if (!session) {
-      return json({ error: `Session not found: ${id}` }, 404);
-    }
-
-    if (endpoint === "screenshots" && subpath === "extract") {
       try {
-        return json(await extractScreenshots(session, await readJson(req)));
+        const result = await handler({
+          session,
+          method,
+          searchParams: url.searchParams,
+          subpath,
+          readBody: () => readJson(req),
+        });
+        if (result instanceof Response) {
+          return result;
+        }
+        return json(result);
       } catch (error) {
         return json({ error: error instanceof Error ? error.message : String(error) }, 400);
       }

@@ -36,6 +36,7 @@ async function loadSession(file: string, alias?: string): Promise<string> {
 
   expect(response.status).toBe(201);
   const payload = await parseJson(response);
+  expect(payload.type).toBe("devtools");
   return String(payload.sessionId);
 }
 
@@ -127,11 +128,14 @@ describe("server router", () => {
     const listPayload = await parseJson(listResponse);
     expect(listPayload.sessions).toHaveLength(1);
     expect(listPayload.sessions[0]?.alias).toBe("minimal");
+    expect(listPayload.sessions[0]?.type).toBe("devtools");
 
     const getResponse = await handleRequest(
       new Request(`http://trace-server/sessions/${sessionId}`),
     );
     expect(getResponse.status).toBe(200);
+    const getPayload = await parseJson(getResponse);
+    expect(getPayload.type).toBe("devtools");
 
     const deleteResponse = await handleRequest(
       new Request(`http://trace-server/sessions/${sessionId}`, {

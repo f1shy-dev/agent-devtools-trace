@@ -1,4 +1,5 @@
-import type { Session } from "../../shared/types";
+import type { DevToolsData } from "..";
+import type { Session } from "../../../shared/types";
 import { getTraceBounds, toPercentage } from "./utils";
 
 interface TraceSummary {
@@ -21,13 +22,13 @@ interface TraceSummary {
   memorySizeMB: number;
 }
 
-export async function getSummary(session: Session): Promise<TraceSummary> {
-  const events = session.trace.traceEvents;
-  const metadata = session.trace.metadata;
+export async function getSummary(data: DevToolsData, session: Session): Promise<TraceSummary> {
+  const events = data.trace.traceEvents;
+  const metadata = data.trace.metadata;
   const { minTs, maxTs } = getTraceBounds(events);
   const totalEvents = events.length;
   const sourceMapCount = Array.isArray(metadata.sourceMaps) ? metadata.sourceMaps.length : 0;
-  const topCategories = [...session.indexes.byCategory.entries()]
+  const topCategories = [...data.indexes.byCategory.entries()]
     .map(([category, categoryEvents]) => ({
       category,
       count: categoryEvents.length,
@@ -35,7 +36,7 @@ export async function getSummary(session: Session): Promise<TraceSummary> {
     }))
     .sort((left, right) => right.count - left.count || left.category.localeCompare(right.category))
     .slice(0, 10);
-  const topEventNames = [...session.indexes.byName.entries()]
+  const topEventNames = [...data.indexes.byName.entries()]
     .map(([name, nameEvents]) => ({ name, count: nameEvents.length }))
     .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
     .slice(0, 15);
@@ -45,21 +46,21 @@ export async function getSummary(session: Session): Promise<TraceSummary> {
     totalEvents,
     durationMs: (maxTs - minTs) / 1000,
     startTime: metadata.startTime,
-    categories: session.indexes.byCategory.size,
-    threads: session.indexes.byThread.size,
+    categories: data.indexes.byCategory.size,
+    threads: data.indexes.byThread.size,
     processes: new Set(events.map((event) => event.pid)).size,
     phases: Object.fromEntries(
-      [...session.indexes.byPhase.entries()].map(([phase, phaseEvents]) => [
+      [...data.indexes.byPhase.entries()].map(([phase, phaseEvents]) => [
         phase,
         phaseEvents.length,
       ]),
     ),
     topCategories,
     topEventNames,
-    hasScreenshots: session.indexes.byName.has("Screenshot"),
-    screenshotCount: session.indexes.byName.get("Screenshot")?.length ?? 0,
-    hasNetworkEvents: session.indexes.byName.has("ResourceSendRequest"),
-    networkRequestCount: session.indexes.byName.get("ResourceSendRequest")?.length ?? 0,
+    hasScreenshots: data.indexes.byName.has("Screenshot"),
+    screenshotCount: data.indexes.byName.get("Screenshot")?.length ?? 0,
+    hasNetworkEvents: data.indexes.byName.has("ResourceSendRequest"),
+    networkRequestCount: data.indexes.byName.get("ResourceSendRequest")?.length ?? 0,
     hasSourceMaps: sourceMapCount > 0,
     sourceMapCount,
     memorySizeMB: session.memorySizeMB,

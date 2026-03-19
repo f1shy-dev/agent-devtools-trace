@@ -1,7 +1,14 @@
 import { defineCommand } from "citty";
 import { TraceServerClient } from "../client";
 import { handleCommandError } from "../errors";
-import { divider, formatDurationMs, formatNumber, renderTable } from "../format";
+import {
+  divider,
+  formatBytes,
+  formatDurationMs,
+  formatNumber,
+  renderTable,
+  truncateMiddle,
+} from "../format";
 import { ensureServer } from "../lifecycle";
 
 export default defineCommand({
@@ -14,6 +21,44 @@ export default defineCommand({
       await ensureServer();
       const client = new TraceServerClient();
       const summary = await client.summary(args.session);
+
+      if ("type" in summary && summary.type === "next-analyze") {
+        console.log(`${formatNumber(summary.totalModules)} modules across ${summary.totalRoutes} routes`);
+        console.log(
+          `Sources: ${formatNumber(summary.totalSources)}  Output files: ${formatNumber(summary.totalOutputFiles)}  Chunk parts: ${formatNumber(summary.totalChunkParts)}`,
+        );
+        console.log(
+          `Total size: ${formatBytes(summary.totalSize)}  Compressed: ${formatBytes(summary.totalCompressedSize)}`,
+        );
+
+        if (summary.topSourcesBySize.length > 0) {
+          console.log("");
+          const rows = [
+            ["Source", "Size", "Compressed"],
+            ...summary.topSourcesBySize.map((entry) => [
+              truncateMiddle(entry.path, 60),
+              formatBytes(entry.size),
+              formatBytes(entry.compressedSize),
+            ]),
+          ];
+          const rendered = renderTable(rows);
+          console.log(rendered[0]);
+          console.log(divider(rendered[0]!.length));
+          for (const row of rendered.slice(1)) {
+            console.log(row);
+          }
+        }
+
+        if (summary.routes.length > 0) {
+          console.log("");
+          console.log("Routes:");
+          for (const route of summary.routes) {
+            console.log(`  ${route}`);
+          }
+        }
+
+        return;
+      }
 
       console.log(
         `${formatNumber(summary.totalEvents)} events over ${formatDurationMs(summary.durationMs)}`,

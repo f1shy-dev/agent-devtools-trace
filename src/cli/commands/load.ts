@@ -22,6 +22,7 @@ export default defineCommand({
       const result = await client.loadSession(resolve(args.file), args.alias);
 
       console.log(`✓ Loaded session: ${result.sessionId}`);
+      console.log(`  Type: ${result.type}`);
       console.log(`  File: ${result.file}`);
       console.log(`  Events: ${formatNumber(result.events)}`);
       console.log(`  Memory: ${result.memorySizeMB.toFixed(1)} MB`);
