@@ -5,6 +5,7 @@ import type {
   HealthResponse,
   LongTasksResponse,
   LoadedSessionResponse,
+  NextAnalyzeSummaryResponse,
   NetworkResponse,
   QueryResponse,
   ScreenshotsResponse,
@@ -71,7 +72,7 @@ export class TraceServerClient {
   }
 
   summary(id: string) {
-    return this.request<SummaryResponse>("GET", `/sessions/${id}/summary`);
+    return this.request<SummaryResponse | NextAnalyzeSummaryResponse>("GET", `/sessions/${id}/summary`);
   }
 
   routes(id: string) {

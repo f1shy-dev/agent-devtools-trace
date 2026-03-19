@@ -163,6 +163,21 @@ export interface SummaryResponse {
   memorySizeMB: number;
 }
 
+export interface NextAnalyzeSummaryResponse {
+  file: string;
+  type: "next-analyze";
+  totalModules: number;
+  totalRoutes: number;
+  routes: string[];
+  totalSources: number;
+  totalOutputFiles: number;
+  totalChunkParts: number;
+  totalSize: number;
+  totalCompressedSize: number;
+  topSourcesBySize: Array<{ path: string; size: number; compressedSize: number }>;
+  memorySizeMB: number;
+}
+
 export interface CategoriesResponse {
   categories: CategoryInfo[];
 }
