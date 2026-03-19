@@ -1,15 +1,20 @@
 import { resolve } from "path";
-import type { ParsedTrace } from "../shared/types";
-import { DevToolsLoader } from "./devtools";
-import type { TraceLoader } from "./types";
+import type { TraceAdapter } from "../shared/adapter";
+import { DevToolsAdapter } from "../adapters/devtools";
 
-const loaders: TraceLoader[] = [new DevToolsLoader()];
+const adapters: TraceAdapter[] = [new DevToolsAdapter()];
 
-export async function loadTrace(filePath: string): Promise<ParsedTrace> {
+export interface LoadResult {
+  adapter: TraceAdapter;
+  data: unknown;
+}
+
+export async function loadTrace(filePath: string): Promise<LoadResult> {
   const resolved = resolve(filePath);
-  for (const loader of loaders) {
-    if (loader.canLoad(resolved)) {
-      return loader.load(resolved);
+  for (const adapter of adapters) {
+    if (adapter.canLoad(resolved)) {
+      const data = await adapter.load(resolved);
+      return { adapter, data };
     }
   }
 

@@ -63,8 +63,11 @@ export class TraceServerClient {
     return this.request<{ ok: boolean; sessionId: string }>("DELETE", `/sessions/${id}`);
   }
 
-  query(id: string, code: string, timeout?: number) {
-    return this.request<QueryResponse>("POST", `/sessions/${id}/query`, { code, timeout });
+  query(id: string, code: string, timeout?: number, route?: string) {
+    const body: Record<string, any> = { code };
+    if (timeout) body.timeout = timeout;
+    if (route) body.route = route;
+    return this.request<QueryResponse>("POST", `/sessions/${id}/query`, body);
   }
 
   summary(id: string) {

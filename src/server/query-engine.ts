@@ -18,7 +18,6 @@ async function transpile(source: string): Promise<string> {
     return new bunRuntime.Transpiler({ loader: "ts" }).transformSync(source);
   }
 
-  // Lazy import — typescript is only needed when not running under Bun
   const ts = await import("typescript").then(m => m.default ?? m);
   return ts.transpileModule(source, {
     compilerOptions: {
@@ -72,11 +71,9 @@ export async function executeQuery(
   session: Session,
   code: string,
   timeout = DEFAULT_QUERY_TIMEOUT,
+  queryOptions?: Record<string, string>,
 ): Promise<any> {
-  const { trace, indexes } = session;
-  const events = trace.traceEvents;
-  const metadata = trace.metadata;
-  const { byCategory, byName, byThread, byPhase } = indexes;
+  const adapterContext = session.adapter.buildQueryContext(session.data, queryOptions);
 
   let script: vm.Script;
   try {
@@ -95,13 +92,7 @@ export async function executeQuery(
 
   try {
     const context = {
-      trace,
-      events,
-      metadata,
-      byCategory,
-      byName,
-      byThread,
-      byPhase,
+      ...adapterContext,
       Buffer,
       console,
       performance,

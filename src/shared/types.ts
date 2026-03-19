@@ -1,3 +1,5 @@
+import type { TraceAdapter } from "./adapter";
+
 export interface TraceEvent {
   cat: string;
   name: string;
@@ -40,8 +42,9 @@ export interface Session {
   id: string;
   file: string;
   alias?: string;
-  trace: ParsedTrace;
-  indexes: TraceIndexes;
+  type: string;
+  data: unknown;
+  adapter: TraceAdapter;
   loadedAt: Date;
   fileSizeBytes: number;
   memorySizeMB: number;
@@ -65,6 +68,7 @@ export interface LoadedSessionResponse {
   sessionId: string;
   file: string;
   alias?: string;
+  type: string;
   events: number;
   memorySizeMB: number;
 }
@@ -73,6 +77,7 @@ export interface SessionInfo {
   id: string;
   file: string;
   alias?: string;
+  type: string;
   events: number;
   loadedAt: string;
   fileSizeBytes: number;
