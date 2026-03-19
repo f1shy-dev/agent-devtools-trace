@@ -10,6 +10,7 @@ import {
   truncateMiddle,
 } from "../format";
 import { ensureServer } from "../lifecycle";
+import type { NextAnalyzeSummaryResponse, SummaryResponse } from "../../shared/types";
 
 export default defineCommand({
   meta: { description: "Show a high-level trace summary" },
@@ -23,19 +24,20 @@ export default defineCommand({
       const summary = await client.summary(args.session);
 
       if ("type" in summary && summary.type === "next-analyze") {
-        console.log(`${formatNumber(summary.totalModules)} modules across ${summary.totalRoutes} routes`);
+        const s = summary as NextAnalyzeSummaryResponse;
+        console.log(`${formatNumber(s.totalModules)} modules across ${s.totalRoutes} routes`);
         console.log(
-          `Sources: ${formatNumber(summary.totalSources)}  Output files: ${formatNumber(summary.totalOutputFiles)}  Chunk parts: ${formatNumber(summary.totalChunkParts)}`,
+          `Sources: ${formatNumber(s.totalSources)}  Output files: ${formatNumber(s.totalOutputFiles)}  Chunk parts: ${formatNumber(s.totalChunkParts)}`,
         );
         console.log(
-          `Total size: ${formatBytes(summary.totalSize)}  Compressed: ${formatBytes(summary.totalCompressedSize)}`,
+          `Total size: ${formatBytes(s.totalSize)}  Compressed: ${formatBytes(s.totalCompressedSize)}`,
         );
 
-        if (summary.topSourcesBySize.length > 0) {
+        if (s.topSourcesBySize.length > 0) {
           console.log("");
           const rows = [
             ["Source", "Size", "Compressed"],
-            ...summary.topSourcesBySize.map((entry) => [
+            ...s.topSourcesBySize.map((entry) => [
               truncateMiddle(entry.path, 60),
               formatBytes(entry.size),
               formatBytes(entry.compressedSize),
@@ -49,10 +51,10 @@ export default defineCommand({
           }
         }
 
-        if (summary.routes.length > 0) {
+        if (s.routes.length > 0) {
           console.log("");
           console.log("Routes:");
-          for (const route of summary.routes) {
+          for (const route of s.routes) {
             console.log(`  ${route}`);
           }
         }
@@ -60,20 +62,22 @@ export default defineCommand({
         return;
       }
 
+      const s = summary as SummaryResponse;
+
       console.log(
-        `${formatNumber(summary.totalEvents)} events over ${formatDurationMs(summary.durationMs)}`,
+        `${formatNumber(s.totalEvents)} events over ${formatDurationMs(s.durationMs)}`,
       );
       console.log(
-        `Processes: ${summary.processes}  Threads: ${summary.threads}  Categories: ${summary.categories}`,
+        `Processes: ${s.processes}  Threads: ${s.threads}  Categories: ${s.categories}`,
       );
       console.log(
-        `Flags: screenshots=${summary.screenshotCount}, network=${summary.networkRequestCount}, sourceMaps=${summary.sourceMapCount}`,
+        `Flags: screenshots=${s.screenshotCount}, network=${s.networkRequestCount}, sourceMaps=${s.sourceMapCount}`,
       );
       console.log("");
 
       const categoryRows = [
         ["Category", "Count", "%"],
-        ...summary.topCategories.map((entry) => [
+        ...s.topCategories.map((entry) => [
           entry.category,
           formatNumber(entry.count),
           `${entry.pct.toFixed(1)}%`,
@@ -89,7 +93,7 @@ export default defineCommand({
       console.log("");
       const eventRows = [
         ["Event", "Count"],
-        ...summary.topEventNames.map((entry) => [entry.name, formatNumber(entry.count)]),
+        ...s.topEventNames.map((entry) => [entry.name, formatNumber(entry.count)]),
       ];
       const renderedEvents = renderTable(eventRows);
       console.log(renderedEvents[0]);

@@ -178,6 +178,53 @@ export interface NextAnalyzeSummaryResponse {
   memorySizeMB: number;
 }
 
+export interface AnalyzeRoutesResponse {
+  routes: Array<{
+    route: string;
+    sourceCount: number;
+    outputFileCount: number;
+    chunkPartCount: number;
+    totalSize: number;
+    totalCompressedSize: number;
+  }>;
+}
+
+export interface AnalyzeModulesResponse {
+  route: string;
+  totalModules: number;
+  modules: Array<{
+    index: number;
+    ident: string;
+    path: string;
+    dependencyCount: number;
+    dependentCount: number;
+    asyncDependencyCount: number;
+    asyncDependentCount: number;
+  }>;
+}
+
+export interface AnalyzeSizesResponse {
+  route: string;
+  byOutputType: Array<{
+    type: string;
+    count: number;
+    size: number;
+    compressedSize: number;
+  }>;
+  byEnvironment: Array<{
+    env: string;
+    count: number;
+    size: number;
+    compressedSize: number;
+  }>;
+  topOutputFiles: Array<{
+    filename: string;
+    size: number;
+    compressedSize: number;
+    chunkParts: number;
+  }>;
+}
+
 export interface CategoriesResponse {
   categories: CategoryInfo[];
 }

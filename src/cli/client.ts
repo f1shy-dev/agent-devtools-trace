@@ -1,5 +1,8 @@
 import { SOCKET_PATH } from "../shared/constants";
 import type {
+  AnalyzeModulesResponse,
+  AnalyzeRoutesResponse,
+  AnalyzeSizesResponse,
   CategoriesResponse,
   ExtractScreenshotsResponse,
   HealthResponse,
@@ -76,7 +79,7 @@ export class TraceServerClient {
   }
 
   routes(id: string) {
-    return this.request<any>("GET", `/sessions/${id}/routes`);
+    return this.request<AnalyzeRoutesResponse>("GET", `/sessions/${id}/routes`);
   }
 
   modules(id: string, route?: string, limit?: number) {
@@ -84,12 +87,12 @@ export class TraceServerClient {
     if (route) params.set("route", route);
     if (limit) params.set("limit", String(limit));
     const query = params.toString();
-    return this.request<any>("GET", `/sessions/${id}/modules${query ? `?${query}` : ""}`);
+    return this.request<AnalyzeModulesResponse>("GET", `/sessions/${id}/modules${query ? `?${query}` : ""}`);
   }
 
   sizes(id: string, route?: string) {
     const query = route ? `?route=${encodeURIComponent(route)}` : "";
-    return this.request<any>("GET", `/sessions/${id}/sizes${query}`);
+    return this.request<AnalyzeSizesResponse>("GET", `/sessions/${id}/sizes${query}`);
   }
 
   async categories(id: string) {
