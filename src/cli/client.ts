@@ -5,6 +5,7 @@ import type {
   HealthResponse,
   LongTasksResponse,
   LoadedSessionResponse,
+  NextAnalyzeSummaryResponse,
   NetworkResponse,
   QueryResponse,
   ScreenshotsResponse,
@@ -71,7 +72,24 @@ export class TraceServerClient {
   }
 
   summary(id: string) {
-    return this.request<SummaryResponse>("GET", `/sessions/${id}/summary`);
+    return this.request<SummaryResponse | NextAnalyzeSummaryResponse>("GET", `/sessions/${id}/summary`);
+  }
+
+  routes(id: string) {
+    return this.request<any>("GET", `/sessions/${id}/routes`);
+  }
+
+  modules(id: string, route?: string, limit?: number) {
+    const params = new URLSearchParams();
+    if (route) params.set("route", route);
+    if (limit) params.set("limit", String(limit));
+    const query = params.toString();
+    return this.request<any>("GET", `/sessions/${id}/modules${query ? `?${query}` : ""}`);
+  }
+
+  sizes(id: string, route?: string) {
+    const query = route ? `?route=${encodeURIComponent(route)}` : "";
+    return this.request<any>("GET", `/sessions/${id}/sizes${query}`);
   }
 
   async categories(id: string) {

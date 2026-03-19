@@ -10,6 +10,7 @@ export default defineCommand({
     code: { type: "positional", description: "TypeScript code to execute" },
     file: { type: "string", alias: "f", description: "Read code from file instead" },
     timeout: { type: "string", alias: "t", description: "Timeout in ms" },
+    route: { type: "string", alias: "r", description: "Route for analyze sessions" },
   },
   async run({ args }) {
     try {
@@ -26,7 +27,7 @@ export default defineCommand({
       }
 
       const timeout = args.timeout ? Number.parseInt(args.timeout, 10) : undefined;
-      const result = await client.query(args.session, code, timeout);
+      const result = await client.query(args.session, code, timeout, args.route || undefined);
 
       if (result.truncated) {
         console.warn("⚠ Result was truncated (exceeded 10MB)");

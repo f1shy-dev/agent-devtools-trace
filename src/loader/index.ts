@@ -1,8 +1,9 @@
 import { resolve } from "path";
 import type { TraceAdapter } from "../shared/adapter";
 import { DevToolsAdapter } from "../adapters/devtools";
+import { NextAnalyzeAdapter } from "../adapters/next-analyze";
 
-const adapters: TraceAdapter[] = [new DevToolsAdapter()];
+const adapters: TraceAdapter[] = [new NextAnalyzeAdapter(), new DevToolsAdapter()];
 
 export interface LoadResult {
   adapter: TraceAdapter;
