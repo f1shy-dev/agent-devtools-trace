@@ -4,8 +4,8 @@ import { defineCommand, runMain } from "citty";
 const main = defineCommand({
   meta: {
     name: "trace-server",
-    version: "0.1.0",
-    description: "Load-once, query-many server for Chrome DevTools traces",
+    version: "0.2.0",
+    description: "Load-once, query-many server for performance traces and bundle analysis",
   },
   subCommands: {
     load: () => import("./commands/load").then((module) => module.default),
