@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
-import type { Session, TraceEvent } from "../../shared/types";
+import type { DevToolsData } from "..";
+import type { Session, TraceEvent } from "../../../shared/types";
 import { getTraceStartTs } from "./utils";
 
 interface ScreenshotInfo {
@@ -18,8 +19,8 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-function getScreenshotEvents(session: Session): TraceEvent[] {
-  return session.trace.traceEvents
+function getScreenshotEvents(data: DevToolsData): TraceEvent[] {
+  return data.trace.traceEvents
     .filter(
       (event) =>
         event.name === "Screenshot" &&
@@ -33,9 +34,12 @@ function getSnapshotBuffer(event: TraceEvent): Buffer {
   return Buffer.from(String(event.args?.snapshot ?? ""), "base64");
 }
 
-export async function getScreenshots(session: Session): Promise<{ screenshots: ScreenshotInfo[] }> {
-  const startTs = getTraceStartTs(session);
-  const screenshots = getScreenshotEvents(session).map((event, index) => {
+export async function getScreenshots(
+  data: DevToolsData,
+  _session: Session,
+): Promise<{ screenshots: ScreenshotInfo[] }> {
+  const startTs = getTraceStartTs(data);
+  const screenshots = getScreenshotEvents(data).map((event, index) => {
     const base64 = String(event.args?.snapshot ?? "");
     const bytes = getSnapshotBuffer(event);
 
@@ -51,12 +55,12 @@ export async function getScreenshots(session: Session): Promise<{ screenshots: S
   return { screenshots };
 }
 
-export function getScreenshotImage(session: Session, index: number): Response {
+export function getScreenshotImage(data: DevToolsData, _session: Session, index: number): Response {
   if (!Number.isInteger(index) || index < 0) {
     return json({ error: `Invalid screenshot index: ${index}` }, 400);
   }
 
-  const event = getScreenshotEvents(session)[index];
+  const event = getScreenshotEvents(data)[index];
   if (!event) {
     return json({ error: `Screenshot not found: ${index}` }, 404);
   }
@@ -67,6 +71,7 @@ export function getScreenshotImage(session: Session, index: number): Response {
 }
 
 export async function extractScreenshots(
+  data: DevToolsData,
   session: Session,
   body: Record<string, any> = {},
 ): Promise<{ dir: string; count: number; files: string[] }> {
@@ -76,7 +81,7 @@ export async function extractScreenshots(
       : `/tmp/trace-screenshots-${session.id}`;
   mkdirSync(outputDir, { recursive: true });
 
-  const files = getScreenshotEvents(session).map((event, index) => {
+  const files = getScreenshotEvents(data).map((event, index) => {
     const filePath = join(outputDir, `screenshot-${index}-${event.ts}.jpg`);
     writeFileSync(filePath, getSnapshotBuffer(event));
     return filePath;

@@ -1,4 +1,5 @@
-import type { Session } from "../../shared/types";
+import type { DevToolsData } from "..";
+import type { Session } from "../../../shared/types";
 import { getThreadMetadata, splitCategories } from "./utils";
 
 interface ThreadInfo {
@@ -11,9 +12,12 @@ interface ThreadInfo {
   categories: string[];
 }
 
-export async function getThreads(session: Session): Promise<{ threads: ThreadInfo[] }> {
-  const { threadNames, processNames } = getThreadMetadata(session.trace.traceEvents);
-  const threads = [...session.indexes.byThread.entries()]
+export async function getThreads(
+  data: DevToolsData,
+  _session: Session,
+): Promise<{ threads: ThreadInfo[] }> {
+  const { threadNames, processNames } = getThreadMetadata(data.trace.traceEvents);
+  const threads = [...data.indexes.byThread.entries()]
     .map(([threadKey, events]) => {
       const [pidText, tidText] = threadKey.split(":");
       const pid = Number(pidText);

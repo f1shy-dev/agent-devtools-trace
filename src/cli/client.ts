@@ -1,10 +1,14 @@
 import { SOCKET_PATH } from "../shared/constants";
 import type {
+  AnalyzeModulesResponse,
+  AnalyzeRoutesResponse,
+  AnalyzeSizesResponse,
   CategoriesResponse,
   ExtractScreenshotsResponse,
   HealthResponse,
   LongTasksResponse,
   LoadedSessionResponse,
+  NextAnalyzeSummaryResponse,
   NetworkResponse,
   QueryResponse,
   ScreenshotsResponse,
@@ -63,12 +67,32 @@ export class TraceServerClient {
     return this.request<{ ok: boolean; sessionId: string }>("DELETE", `/sessions/${id}`);
   }
 
-  query(id: string, code: string, timeout?: number) {
-    return this.request<QueryResponse>("POST", `/sessions/${id}/query`, { code, timeout });
+  query(id: string, code: string, timeout?: number, route?: string) {
+    const body: Record<string, any> = { code };
+    if (timeout) body.timeout = timeout;
+    if (route) body.route = route;
+    return this.request<QueryResponse>("POST", `/sessions/${id}/query`, body);
   }
 
   summary(id: string) {
-    return this.request<SummaryResponse>("GET", `/sessions/${id}/summary`);
+    return this.request<SummaryResponse | NextAnalyzeSummaryResponse>("GET", `/sessions/${id}/summary`);
+  }
+
+  routes(id: string) {
+    return this.request<AnalyzeRoutesResponse>("GET", `/sessions/${id}/routes`);
+  }
+
+  modules(id: string, route?: string, limit?: number) {
+    const params = new URLSearchParams();
+    if (route) params.set("route", route);
+    if (limit) params.set("limit", String(limit));
+    const query = params.toString();
+    return this.request<AnalyzeModulesResponse>("GET", `/sessions/${id}/modules${query ? `?${query}` : ""}`);
+  }
+
+  sizes(id: string, route?: string) {
+    const query = route ? `?route=${encodeURIComponent(route)}` : "";
+    return this.request<AnalyzeSizesResponse>("GET", `/sessions/${id}/sizes${query}`);
   }
 
   async categories(id: string) {

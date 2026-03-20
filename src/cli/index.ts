@@ -4,8 +4,8 @@ import { defineCommand, runMain } from "citty";
 const main = defineCommand({
   meta: {
     name: "trace-server",
-    version: "0.1.0",
-    description: "Load-once, query-many server for Chrome DevTools traces",
+    version: "0.2.0",
+    description: "Load-once, query-many server for performance traces and bundle analysis",
   },
   subCommands: {
     load: () => import("./commands/load").then((module) => module.default),
@@ -13,6 +13,9 @@ const main = defineCommand({
     info: () => import("./commands/info").then((module) => module.default),
     query: () => import("./commands/query").then((module) => module.default),
     summary: () => import("./commands/summary").then((module) => module.default),
+    routes: () => import("./commands/routes").then((module) => module.default),
+    modules: () => import("./commands/modules").then((module) => module.default),
+    sizes: () => import("./commands/sizes").then((module) => module.default),
     categories: () => import("./commands/categories").then((module) => module.default),
     threads: () => import("./commands/threads").then((module) => module.default),
     network: () => import("./commands/network").then((module) => module.default),

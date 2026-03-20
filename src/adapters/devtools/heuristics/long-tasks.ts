@@ -1,4 +1,5 @@
-import type { Session } from "../../shared/types";
+import type { DevToolsData } from "..";
+import type { Session } from "../../../shared/types";
 import { getThreadMetadata, getTraceBounds } from "./utils";
 
 interface LongTask {
@@ -12,15 +13,16 @@ interface LongTask {
 }
 
 export async function getLongTasks(
-  session: Session,
+  data: DevToolsData,
+  _session: Session,
   searchParams: URLSearchParams,
 ): Promise<{ thresholdMs: number; tasks: LongTask[] }> {
   const thresholdValue = Number(searchParams.get("threshold"));
   const thresholdMs = Number.isFinite(thresholdValue) && thresholdValue > 0 ? thresholdValue : 50;
   const thresholdMicros = thresholdMs * 1000;
-  const { minTs } = getTraceBounds(session.trace.traceEvents);
-  const { threadNames } = getThreadMetadata(session.trace.traceEvents);
-  const tasks = session.trace.traceEvents
+  const { minTs } = getTraceBounds(data.trace.traceEvents);
+  const { threadNames } = getThreadMetadata(data.trace.traceEvents);
+  const tasks = data.trace.traceEvents
     .filter(
       (event) => event.ph === "X" && typeof event.dur === "number" && event.dur > thresholdMicros,
     )

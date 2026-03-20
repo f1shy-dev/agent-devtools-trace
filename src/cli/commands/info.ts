@@ -3,6 +3,7 @@ import { TraceServerClient } from "../client";
 import { handleCommandError } from "../errors";
 import { formatBytes, formatDurationMs, formatIsoDate, formatNumber } from "../format";
 import { ensureServer } from "../lifecycle";
+import type { NextAnalyzeSummaryResponse, SummaryResponse } from "../../shared/types";
 
 export default defineCommand({
   meta: { description: "Show detailed session information" },
@@ -24,15 +25,28 @@ export default defineCommand({
         console.log(`Alias: ${session.alias}`);
       }
       console.log(`Events: ${formatNumber(session.events)}`);
-      console.log(`Duration: ${formatDurationMs(summary.durationMs)}`);
       console.log(`File size: ${formatBytes(session.fileSizeBytes)}`);
       console.log(`Memory: ${session.memorySizeMB.toFixed(1)} MB`);
       console.log(`Loaded: ${formatIsoDate(session.loadedAt)}`);
-      console.log(`Categories: ${formatNumber(summary.categories)}`);
-      console.log(`Threads: ${formatNumber(summary.threads)}`);
-      console.log(`Screenshots: ${summary.hasScreenshots ? summary.screenshotCount : 0}`);
-      console.log(`Network events: ${summary.hasNetworkEvents ? summary.networkRequestCount : 0}`);
-      console.log(`Source maps: ${summary.hasSourceMaps ? summary.sourceMapCount : 0}`);
+      if ("type" in summary && summary.type === "next-analyze") {
+        const s = summary as NextAnalyzeSummaryResponse;
+        console.log(`Type: ${session.type}`);
+        console.log(`Modules: ${formatNumber(s.totalModules)}`);
+        console.log(`Routes: ${formatNumber(s.totalRoutes)}`);
+        console.log(`Sources: ${formatNumber(s.totalSources)}`);
+        console.log(`Output files: ${formatNumber(s.totalOutputFiles)}`);
+        console.log(`Chunk parts: ${formatNumber(s.totalChunkParts)}`);
+        console.log(`Total size: ${formatBytes(s.totalSize)}`);
+        console.log(`Compressed size: ${formatBytes(s.totalCompressedSize)}`);
+      } else {
+        const s = summary as SummaryResponse;
+        console.log(`Duration: ${formatDurationMs(s.durationMs)}`);
+        console.log(`Categories: ${formatNumber(s.categories)}`);
+        console.log(`Threads: ${formatNumber(s.threads)}`);
+        console.log(`Screenshots: ${s.hasScreenshots ? s.screenshotCount : 0}`);
+        console.log(`Network events: ${s.hasNetworkEvents ? s.networkRequestCount : 0}`);
+        console.log(`Source maps: ${s.hasSourceMaps ? s.sourceMapCount : 0}`);
+      }
     } catch (error) {
       handleCommandError(error);
     }

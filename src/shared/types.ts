@@ -1,3 +1,5 @@
+import type { TraceAdapter } from "./adapter";
+
 export interface TraceEvent {
   cat: string;
   name: string;
@@ -40,8 +42,9 @@ export interface Session {
   id: string;
   file: string;
   alias?: string;
-  trace: ParsedTrace;
-  indexes: TraceIndexes;
+  type: string;
+  data: unknown;
+  adapter: TraceAdapter;
   loadedAt: Date;
   fileSizeBytes: number;
   memorySizeMB: number;
@@ -65,6 +68,7 @@ export interface LoadedSessionResponse {
   sessionId: string;
   file: string;
   alias?: string;
+  type: string;
   events: number;
   memorySizeMB: number;
 }
@@ -73,6 +77,7 @@ export interface SessionInfo {
   id: string;
   file: string;
   alias?: string;
+  type: string;
   events: number;
   loadedAt: string;
   fileSizeBytes: number;
@@ -156,6 +161,68 @@ export interface SummaryResponse {
   hasSourceMaps: boolean;
   sourceMapCount: number;
   memorySizeMB: number;
+}
+
+export interface NextAnalyzeSummaryResponse {
+  file: string;
+  type: "next-analyze";
+  totalModules: number;
+  totalRoutes: number;
+  routes: string[];
+  totalSources: number;
+  totalOutputFiles: number;
+  totalChunkParts: number;
+  totalSize: number;
+  totalCompressedSize: number;
+  topSourcesBySize: Array<{ path: string; size: number; compressedSize: number }>;
+  memorySizeMB: number;
+}
+
+export interface AnalyzeRoutesResponse {
+  routes: Array<{
+    route: string;
+    sourceCount: number;
+    outputFileCount: number;
+    chunkPartCount: number;
+    totalSize: number;
+    totalCompressedSize: number;
+  }>;
+}
+
+export interface AnalyzeModulesResponse {
+  route: string;
+  totalModules: number;
+  modules: Array<{
+    index: number;
+    ident: string;
+    path: string;
+    dependencyCount: number;
+    dependentCount: number;
+    asyncDependencyCount: number;
+    asyncDependentCount: number;
+  }>;
+}
+
+export interface AnalyzeSizesResponse {
+  route: string;
+  byOutputType: Array<{
+    type: string;
+    count: number;
+    size: number;
+    compressedSize: number;
+  }>;
+  byEnvironment: Array<{
+    env: string;
+    count: number;
+    size: number;
+    compressedSize: number;
+  }>;
+  topOutputFiles: Array<{
+    filename: string;
+    size: number;
+    compressedSize: number;
+    chunkParts: number;
+  }>;
 }
 
 export interface CategoriesResponse {

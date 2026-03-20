@@ -1,31 +1,33 @@
 # trace-server
 
-Load-once, query-many server for Chrome DevTools performance traces. Built for AI agents and automation workflows that need to inspect large traces repeatedly without paying JSON parse cost on every query.
+Load-once, query-many server for performance traces and bundle analysis data. Built for AI agents and automation workflows that need to inspect large datasets repeatedly without paying parse cost on every query. Supports Chrome DevTools traces and Next.js Turbopack bundle analyzer output.
 
 ## The Problem
 
-Chrome DevTools traces are often 100-300MB+ of JSON. Traditional one-off scripts re-read and re-parse the file every time you ask a new question.
+Performance traces and bundle analysis artifacts are often large enough that repeated one-off scripts waste time re-reading and re-parsing the same data.
 
 - **Without `trace-server`**: `700ms parse × 10 queries = 7,000ms` wasted on repeated setup
 - **With `trace-server`**: `700ms parse once + 5ms × 10 queries = 750ms` total
 
 `trace-server` turns trace analysis into a persistent workflow:
 
-1. Load a trace once
+1. Load data once
 2. Keep it indexed in memory
 3. Query it many times from separate CLI or agent calls
 4. Unload it when done
 
-This is especially useful for AI agents that need to iteratively explore a trace: summarize it, ask follow-up questions, inspect specific events, then run custom TypeScript analysis.
+This is especially useful for AI agents that need to iteratively explore performance data: summarize it, ask follow-up questions, inspect specific routes or events, then run custom TypeScript analysis.
 
 ## Why use it
 
 - **Fast repeated analysis**: parses once, then serves indexed lookups from memory
 - **Agent-friendly**: daemon stays alive across separate tool invocations
-- **Built-in heuristics**: summary, categories, threads, network, long tasks, screenshots
-- **Custom TypeScript queries**: run ad hoc code against the loaded trace
+- **Built-in heuristics**: summary plus adapter-specific commands for common investigations
+- **Custom TypeScript queries**: run ad hoc code against loaded sessions
+- **Multiple trace formats**: Chrome DevTools traces (`.json`, `.json.gz`) and Next.js bundle analyzer data (`next experimental-analyze`)
+- **Adapter architecture**: extensible plugin system — each trace type provides its own heuristics and query context
 - **No manual daemon management**: CLI auto-starts the server on first use
-- **Works with large traces**: supports `.json` and `.json.gz`
+- **Works with large inputs**: optimized for repeated inspection of large trace or analysis files
 
 ## Installation
 
@@ -48,12 +50,15 @@ bun run src/cli/index.ts --help
 
 ## Quick Start
 
+Chrome DevTools trace:
+
 ```bash
 # Load a trace file. The server auto-starts in the background if needed.
 trace-server load ./Performance-20260313T123456.json
 
 # Example output:
 # ✓ Loaded session: a1b2c3d4
+#   Type: devtools
 #   File: /absolute/path/Performance-20260313T123456.json
 #   Events: 1,842,331
 #   Memory: 412.6 MB
@@ -73,20 +78,54 @@ trace-server screenshots a1b2c3d4
 
 # When finished
 trace-server unload a1b2c3d4
-trace-server stop
 ```
 
-## Supported trace formats
+Next.js Analyze:
 
-`trace-server` accepts Chrome DevTools traces in either of these forms:
+```bash
+# Load Next.js bundle analyzer output
+trace-server load .next/diagnostics/analyze/data
+
+# Example output:
+# ✓ Loaded session: b2c3d4e5
+#   Type: next-analyze
+#   File: /absolute/path/.next/diagnostics/analyze/data
+#   Events: 842
+#   Memory: 1.5 MB
+
+# Explore the bundle
+trace-server summary b2c3d4e5
+trace-server routes b2c3d4e5
+trace-server sizes b2c3d4e5 --route /
+trace-server modules b2c3d4e5 --route / --limit 10
+
+# Custom queries with TypeScript
+trace-server query b2c3d4e5 --route / "analyze.sourceCount()"
+trace-server query b2c3d4e5 "modules.moduleCount()"
+
+# Cleanup
+trace-server unload b2c3d4e5
+```
+
+## Supported formats
+
+Chrome DevTools traces:
 
 - top-level object with `traceEvents` and optional `metadata`
 - legacy top-level array of trace events
 - gzip-compressed files ending in `.json.gz`
+- Session type: `devtools`
+
+Next.js Bundle Analyzer (Turbopack):
+
+- directory produced by `next experimental-analyze --output`
+- located at `.next/diagnostics/analyze/data/`
+- contains `modules.data` (binary), per-route `analyze.data` (binary), and `routes.json`
+- Session type: `next-analyze`
 
 ## Common workflow for agents
 
-A typical agent loop looks like this:
+Chrome DevTools trace workflow:
 
 ```bash
 # 1) Load once
@@ -107,24 +146,56 @@ trace-server network "$SESSION"
 trace-server unload "$SESSION"
 ```
 
-The key idea is that the server persists between commands, so an agent can make many small follow-up queries without reloading the file.
+Next.js Analyze workflow:
+
+```bash
+# 1) Generate analyze data (in your Next.js project)
+npx next experimental-analyze --output
+
+# 2) Load into trace-server
+SESSION=$(trace-server load .next/diagnostics/analyze/data | awk '/Loaded session:/ { print $4 }')
+
+# 3) Explore the bundle
+trace-server summary "$SESSION"
+trace-server routes "$SESSION"
+trace-server sizes "$SESSION" --route /
+trace-server modules "$SESSION" --route / --limit 20
+
+# 4) Custom analysis
+trace-server query "$SESSION" --route / "analyze.getRecursiveSizes(analyze.sourceRoots()[0], () => true)"
+trace-server query "$SESSION" "modules.moduleDependencies(0).map(i => modules.module(i)?.path)"
+
+# 5) Clean up
+trace-server unload "$SESSION"
+```
+
+The key idea is that the server persists between commands, so an agent can make many small follow-up queries without reloading the file or directory.
 
 ## Commands
 
+Not every command is available for every session type. Adapter-specific commands return a clear error when used on the wrong type:
+
+```bash
+$ trace-server network <analyze-session-id>
+Error: Endpoint 'network' is not available for 'next-analyze' sessions
+```
+
 ### `load <file> [--alias <name>]`
 
-Load a trace file into memory. Returns a generated session ID.
+Load a supported trace file or analysis directory into memory. Returns a generated session ID.
 
 ```bash
 trace-server load ./trace.json
 trace-server load ./trace.json.gz --alias homepage-load
+trace-server load ./.next/diagnostics/analyze/data --alias homepage-analyze
 ```
 
 Notes:
 
-- accepts `.json` and `.json.gz`
+- accepts `.json` and `.json.gz` Chrome DevTools traces
+- accepts Next.js analyze directories containing `modules.data`
 - stores the absolute file path in the session
-- builds indexes by category, name, thread, and phase
+- builds adapter-specific indexes and query context
 - auto-starts the daemon if it is not already running
 
 ### `sessions`
@@ -134,8 +205,9 @@ List all currently loaded sessions.
 Shows:
 
 - session ID
+- session type
 - alias or file path
-- event count
+- item count
 - memory usage estimate
 
 ```bash
@@ -146,20 +218,7 @@ trace-server sessions
 
 Show detailed information for one session.
 
-Includes:
-
-- file path
-- alias
-- event count
-- duration
-- file size
-- memory usage
-- load timestamp
-- category count
-- thread count
-- screenshot count
-- network request count
-- source map count
+The exact metadata depends on the session type, but always includes file path, alias, size, memory usage, and load timestamp.
 
 ```bash
 trace-server info a1b2c3d4
@@ -167,25 +226,22 @@ trace-server info a1b2c3d4
 
 ### `summary <session-id>`
 
-High-level overview of the trace.
+High-level overview of the loaded session.
 
-Useful as the first command after loading because it quickly answers:
+For DevTools traces, this surfaces event count, duration, categories, phases, screenshots, network requests, and dominant event names.
 
-- how large the trace is
-- how long the capture ran
-- how many processes, threads, and categories exist
-- whether screenshots, network events, or source maps are present
-- which categories and event names dominate the trace
+For Next.js Analyze sessions, this surfaces module count, route count, source count, output file counts, aggregate sizes, and top sources by size.
 
 ```bash
 trace-server summary a1b2c3d4
+trace-server summary b2c3d4e5
 ```
 
 ### `categories <session-id>`
 
 Show event distribution by category.
 
-This is useful for identifying whether a trace is dominated by categories like `loading`, `devtools.timeline`, `layout`, or screenshot capture.
+DevTools only.
 
 ```bash
 trace-server categories a1b2c3d4
@@ -195,7 +251,7 @@ trace-server categories a1b2c3d4
 
 List threads grouped by process.
 
-Useful when you want to know which threads are active, such as `CrBrowserMain`, `RendererMain`, or compositor-related threads.
+DevTools only.
 
 ```bash
 trace-server threads a1b2c3d4
@@ -203,19 +259,9 @@ trace-server threads a1b2c3d4
 
 ### `network <session-id>`
 
-Reconstruct network requests from trace events such as:
+Reconstruct network requests from trace events such as `ResourceSendRequest`, `ResourceReceiveResponse`, and `ResourceFinish`.
 
-- `ResourceSendRequest`
-- `ResourceReceiveResponse`
-- `ResourceFinish`
-
-Output includes:
-
-- HTTP method
-- status code
-- duration
-- transfer size
-- URL
+DevTools only.
 
 ```bash
 trace-server network a1b2c3d4
@@ -225,9 +271,7 @@ trace-server network a1b2c3d4
 
 Find long-running duration events (`ph: "X"`) above a threshold.
 
-By default the threshold is `50ms`.
-
-This is useful for surfacing expensive work such as `EvaluateScript`, `FunctionCall`, `Layout`, or `Paint`.
+DevTools only.
 
 ```bash
 trace-server long-tasks a1b2c3d4
@@ -237,6 +281,8 @@ trace-server long-tasks a1b2c3d4 --threshold 100
 ### `screenshots <session-id> [--extract] [--dir <path>]`
 
 List screenshots embedded in the trace, or extract them to JPEG files.
+
+DevTools only.
 
 ```bash
 # List screenshots with timestamp and size
@@ -249,17 +295,45 @@ trace-server screenshots a1b2c3d4 --extract
 trace-server screenshots a1b2c3d4 --extract --dir ./trace-shots
 ```
 
-Notes:
+### `routes <session-id>`
 
-- screenshots come from `Screenshot` trace events
-- extracted files are written as `.jpg`
-- default extraction directory is `/tmp/trace-screenshots-<session-id>`
+List all analyzed routes with source counts, output file counts, and sizes.
 
-### `query <session-id> <code> [--file <path>] [--timeout <ms>]`
+Next.js Analyze only.
 
-Execute TypeScript against the loaded trace in a sandboxed context.
+```bash
+trace-server routes b2c3d4e5
+```
 
-Available variables inside the query:
+### `modules <session-id> [--route <route>] [--limit <n>]`
+
+List top modules sorted by dependency + dependent count.
+
+Next.js Analyze only.
+
+```bash
+trace-server modules b2c3d4e5
+trace-server modules b2c3d4e5 --route /about --limit 20
+```
+
+### `sizes <session-id> [--route <route>]`
+
+Size breakdown by output type (`js`/`css`/`json`/`asset`), environment (`client`/`server`), and top output files.
+
+Next.js Analyze only.
+
+```bash
+trace-server sizes b2c3d4e5
+trace-server sizes b2c3d4e5 --route /about
+```
+
+### `query <session-id> <code> [--file <path>] [--timeout <ms>] [--route <route>]`
+
+Execute TypeScript against the loaded session in a sandboxed context.
+
+`--route` / `-r` selects the route-specific `AnalyzeData` instance for Next.js Analyze sessions. It is ignored for DevTools sessions.
+
+DevTools query variables:
 
 - `trace`: full parsed trace object
 - `events`: `trace.traceEvents`
@@ -269,12 +343,19 @@ Available variables inside the query:
 - `byThread`: `Map<string, TraceEvent[]>`
 - `byPhase`: `Map<string, TraceEvent[]>`
 
+Next.js Analyze query variables:
+
+- `modules` — `ModulesData` instance (`.module(i)`, `.moduleCount()`, `.moduleDependencies(i)`, `.moduleDependents(i)`, `.asyncModuleDependencies(i)`, `.asyncModuleDependents(i)`, `.getModuleIndicesFromPath(path)`)
+- `analyze` — `AnalyzeData` instance for the selected route (`.source(i)`, `.sourceCount()`, `.chunkPart(i)`, `.outputFile(i)`, `.sourceRoots()`, `.sourceChildren(i)`, `.sourceChunkParts(i)`, `.getFullSourcePath(i)`, `.getOwnSizes(i)`, `.getRecursiveSizes(i, filter)`, `.getSourceFlags(i)`)
+- `routes` — `string[]` of available routes
+- `allAnalyze` — `Map<string, AnalyzeData>` of all route data
+
 Queries can be either:
 
 - a single expression
 - a block of statements ending with `return`
 
-Examples:
+DevTools examples:
 
 ```bash
 # Count all Layout events
@@ -285,25 +366,43 @@ trace-server query a1b2c3d4 "(byName.get('Paint') ?? []).slice(0, 10).map(e => (
 
 # Count FunctionCall events on a specific thread
 trace-server query a1b2c3d4 "(byName.get('FunctionCall') ?? []).filter(e => `${e.pid}:${e.tid}` === '123:456').length"
+```
 
-# Group long Layout events by thread
-trace-server query a1b2c3d4 '
-const layouts = byName.get("Layout") ?? [];
-const result = new Map();
-for (const event of layouts) {
-  const dur = (event.dur ?? 0) / 1000;
-  if (dur < 16) continue;
-  const key = `${event.pid}:${event.tid}`;
-  result.set(key, (result.get(key) ?? 0) + 1);
+Next.js Analyze examples:
+
+```bash
+# Count total modules
+trace-server query "$SESSION" "modules.moduleCount()"
+
+# Find largest sources in the root route
+trace-server query "$SESSION" --route / '
+const roots = analyze.sourceRoots();
+const sources = [];
+for (let i = 0; i < analyze.sourceCount(); i++) {
+  const sizes = analyze.getOwnSizes(i);
+  if (sizes.size > 0) {
+    sources.push({ path: analyze.getFullSourcePath(i), ...sizes });
+  }
 }
-return Object.fromEntries(result);
+return sources.sort((a, b) => b.size - a.size).slice(0, 10);
 '
 
-# Run a larger analysis from a file
-trace-server query a1b2c3d4 --file ./analyze-trace.ts
+# List dependencies of a specific module
+trace-server query "$SESSION" '
+const indices = modules.getModuleIndicesFromPath("/app/page.tsx");
+return indices.flatMap(i => modules.moduleDependencies(i).map(d => modules.module(d)?.path));
+'
 
-# Raise or lower the timeout (default: 30000ms)
-trace-server query a1b2c3d4 "await new Promise(r => setTimeout(r, 100)); 'done'" --timeout 500
+# Compare route sizes
+trace-server query "$SESSION" '
+return [...allAnalyze.entries()].map(([route, data]) => {
+  let totalSize = 0;
+  for (let i = 0; i < data.chunkPartCount(); i++) {
+    totalSize += data.chunkPart(i)?.size ?? 0;
+  }
+  return { route, totalSize };
+}).sort((a, b) => b.totalSize - a.totalSize);
+'
 ```
 
 Query behavior:
@@ -346,56 +445,6 @@ Gracefully stop the daemon and remove the socket/PID files.
 trace-server stop
 ```
 
-## Query cookbook
-
-A few practical examples for common trace-analysis questions.
-
-### Count events by name
-
-```bash
-trace-server query "$SESSION" "Object.fromEntries([...byName.entries()].map(([name, list]) => [name, list.length]))"
-```
-
-### Find the slowest `Layout` events
-
-```bash
-trace-server query "$SESSION" '
-(byName.get("Layout") ?? [])
-  .filter(e => typeof e.dur === "number")
-  .sort((a, b) => (b.dur ?? 0) - (a.dur ?? 0))
-  .slice(0, 10)
-  .map(e => ({
-    tsMs: e.ts / 1000,
-    durMs: (e.dur ?? 0) / 1000,
-    pid: e.pid,
-    tid: e.tid,
-  }))
-'
-```
-
-### Inspect all event names in the `loading` category
-
-```bash
-trace-server query "$SESSION" "[...new Set((byCategory.get('loading') ?? []).map(e => e.name))].sort()"
-```
-
-### See phase distribution
-
-```bash
-trace-server query "$SESSION" "Object.fromEntries([...byPhase.entries()].map(([phase, list]) => [phase, list.length]))"
-```
-
-### Find main-thread scripting tasks over 50ms
-
-```bash
-trace-server query "$SESSION" '
-(events)
-  .filter(e => ["EvaluateScript", "FunctionCall", "RunTask"].includes(e.name))
-  .filter(e => ((e.dur ?? 0) / 1000) > 50)
-  .map(e => ({ name: e.name, durMs: (e.dur ?? 0) / 1000, pid: e.pid, tid: e.tid }))
-'
-```
-
 ## HTTP API
 
 The daemon exposes a JSON API over a Unix socket. This is useful when an agent wants to bypass the CLI and talk directly to the server.
@@ -408,23 +457,28 @@ Default socket path:
 
 ### Endpoints
 
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/health` | Server health, PID, uptime, session count, memory |
-| `POST` | `/sessions` | Load a trace from disk |
-| `GET` | `/sessions` | List loaded sessions |
-| `GET` | `/sessions/:id` | Get session details |
-| `DELETE` | `/sessions/:id` | Unload a session |
-| `POST` | `/sessions/:id/query` | Execute a custom query |
-| `GET` | `/sessions/:id/summary` | High-level trace summary |
-| `GET` | `/sessions/:id/categories` | Category breakdown |
-| `GET` | `/sessions/:id/threads` | Thread listing |
-| `GET` | `/sessions/:id/network` | Reconstructed network requests |
-| `GET` | `/sessions/:id/long-tasks?threshold=<ms>` | Long task analysis |
-| `GET` | `/sessions/:id/screenshots` | List screenshots |
-| `GET` | `/sessions/:id/screenshots/:index` | Return one screenshot as JPEG bytes |
-| `POST` | `/sessions/:id/screenshots/extract` | Extract all screenshots to disk |
-| `POST` | `/server/stop` | Stop the daemon |
+| Method | Path | Description | Trace Types |
+| --- | --- | --- | --- |
+| `GET` | `/health` | Server health, PID, uptime, session count, memory | all |
+| `POST` | `/sessions` | Load a trace from disk | all |
+| `GET` | `/sessions` | List loaded sessions | all |
+| `GET` | `/sessions/:id` | Get session details | all |
+| `DELETE` | `/sessions/:id` | Unload a session | all |
+| `POST` | `/sessions/:id/query` | Execute a custom query | all |
+| `GET` | `/sessions/:id/summary` | High-level session summary | all |
+| `GET` | `/sessions/:id/categories` | Category breakdown | `devtools` |
+| `GET` | `/sessions/:id/threads` | Thread listing | `devtools` |
+| `GET` | `/sessions/:id/network` | Reconstructed network requests | `devtools` |
+| `GET` | `/sessions/:id/long-tasks?threshold=<ms>` | Long task analysis | `devtools` |
+| `GET` | `/sessions/:id/screenshots` | List screenshots | `devtools` |
+| `GET` | `/sessions/:id/screenshots/:index` | Return one screenshot as JPEG bytes | `devtools` |
+| `POST` | `/sessions/:id/screenshots/extract` | Extract all screenshots to disk | `devtools` |
+| `GET` | `/sessions/:id/routes` | List analyzed routes with sizes | `next-analyze` |
+| `GET` | `/sessions/:id/modules?route=&limit=` | Top modules by dependency count | `next-analyze` |
+| `GET` | `/sessions/:id/sizes?route=` | Size breakdown by type/env | `next-analyze` |
+| `POST` | `/server/stop` | Stop the daemon | all |
+
+`POST /sessions/:id/query` accepts an optional `route` field in the JSON body for Next.js Analyze sessions.
 
 ### Example: use the API from Bun
 
@@ -492,7 +546,8 @@ curl --unix-socket "$HOME/.trace-server/server.sock" \
 ```json
 {
   "code": "byCategory.get('loading')?.length ?? 0",
-  "timeout": 5000
+  "timeout": 5000,
+  "route": "/"
 }
 ```
 
@@ -508,17 +563,21 @@ curl --unix-socket "$HOME/.trace-server/server.sock" \
 
 `trace-server` runs as a background daemon that:
 
-1. loads a trace from disk
+1. loads a trace file or analysis directory from disk
 2. parses it once
-3. builds indexes for fast repeated lookup
+3. builds indexes and adapter-specific context for fast repeated lookup
 4. serves CLI and HTTP requests over a Unix socket
 
-Indexes are built for:
+`trace-server` uses an adapter architecture where each trace format provides its own:
 
-- event category
-- event name
-- thread (`pid:tid`)
-- phase (`ph`)
+- file detection and parsing
+- heuristic endpoints
+- query context variables
+
+Built-in adapters:
+
+- `devtools` — Chrome DevTools traces (`.json`, `.json.gz`)
+- `next-analyze` — Next.js Turbopack bundle analyzer output (directory with `.data` files)
 
 The daemon persists across CLI invocations, so sessions remain available until you explicitly `unload` them or `stop` the server.
 
@@ -543,11 +602,12 @@ If you only set `TRACE_SERVER_SOCKET`, the default PID file becomes `<socket>.pi
 
 ## Practical tips
 
-- Start with `summary`, then `categories` or `threads`, then custom `query` calls.
-- Use aliases when comparing multiple traces in one daemon session.
+- Start with `summary`, then adapter-specific overview commands like `categories`, `threads`, `routes`, or `sizes`, then custom `query` calls.
+- Use aliases when comparing multiple sessions in one daemon process.
 - Prefer built-in heuristics for common questions; they are faster to type and easier for agents to chain.
 - Use `--file` for longer TypeScript analysis so your shell quoting stays sane.
-- Call `unload` when you finish with a large trace to free memory.
+- Use `--route` when you want route-specific Next.js Analyze queries.
+- Call `unload` when you finish with a large session to free memory.
 
 ## License
 
@@ -555,4 +615,4 @@ MIT
 
 ## Contributing
 
-Architecture is implemented in the codebase; inspect `src/server/`, `src/cli/`, and `src/loader/` for the current design.
+Architecture is implemented in the codebase; inspect `src/server/`, `src/cli/`, `src/loader/`, and `src/adapters/` for the current design.

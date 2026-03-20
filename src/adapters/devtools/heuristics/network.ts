@@ -1,4 +1,5 @@
-import type { Session } from "../../shared/types";
+import type { DevToolsData } from "..";
+import type { Session } from "../../../shared/types";
 
 interface NetworkRequest {
   requestId: string;
@@ -45,10 +46,13 @@ function getOrCreateRequest(
   return request;
 }
 
-export async function getNetwork(session: Session): Promise<{ requests: NetworkRequest[] }> {
+export async function getNetwork(
+  data: DevToolsData,
+  _session: Session,
+): Promise<{ requests: NetworkRequest[] }> {
   const requests = new Map<string, NetworkRequest>();
 
-  for (const event of session.indexes.byName.get("ResourceSendRequest") ?? []) {
+  for (const event of data.indexes.byName.get("ResourceSendRequest") ?? []) {
     const data = getData(event);
     if (typeof data.requestId !== "string" || data.requestId.length === 0) {
       continue;
@@ -72,7 +76,7 @@ export async function getNetwork(session: Session): Promise<{ requests: NetworkR
     }
   }
 
-  for (const event of session.indexes.byName.get("ResourceReceiveResponse") ?? []) {
+  for (const event of data.indexes.byName.get("ResourceReceiveResponse") ?? []) {
     const data = getData(event);
     if (typeof data.requestId !== "string" || data.requestId.length === 0) {
       continue;
@@ -90,7 +94,7 @@ export async function getNetwork(session: Session): Promise<{ requests: NetworkR
     }
   }
 
-  for (const event of session.indexes.byName.get("ResourceFinish") ?? []) {
+  for (const event of data.indexes.byName.get("ResourceFinish") ?? []) {
     const data = getData(event);
     if (typeof data.requestId !== "string" || data.requestId.length === 0) {
       continue;
