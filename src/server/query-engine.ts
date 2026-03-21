@@ -49,7 +49,157 @@ export function serializeResult(result: any): { serialized: string; truncated: b
   return { serialized: str, truncated: false };
 }
 
-async function buildQueryScript(code: string, mode: "expression" | "statements"): Promise<vm.Script> {
+function findLastExpressionStart(code: string): number | null {
+  let lastBoundary = 0;
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  let braceDepth = 0;
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let inTemplate = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+  let escaped = false;
+
+  for (let index = 0; index < code.length; index++) {
+    const char = code[index];
+    const next = code[index + 1];
+
+    if (inLineComment) {
+      if (char === "\n") {
+        inLineComment = false;
+        if (parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+          lastBoundary = index + 1;
+        }
+      }
+      continue;
+    }
+
+    if (inBlockComment) {
+      if (char === "*" && next === "/") {
+        inBlockComment = false;
+        index++;
+      }
+      continue;
+    }
+
+    if (inSingleQuote || inDoubleQuote || inTemplate) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (inSingleQuote && char === "'") {
+        inSingleQuote = false;
+      } else if (inDoubleQuote && char === "\"") {
+        inDoubleQuote = false;
+      } else if (inTemplate && char === "`") {
+        inTemplate = false;
+      }
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      inLineComment = true;
+      index++;
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      inBlockComment = true;
+      index++;
+      continue;
+    }
+    if (char === "'") {
+      inSingleQuote = true;
+      continue;
+    }
+    if (char === "\"") {
+      inDoubleQuote = true;
+      continue;
+    }
+    if (char === "`") {
+      inTemplate = true;
+      continue;
+    }
+
+    if (char === "(") {
+      parenDepth++;
+      continue;
+    }
+    if (char === ")") {
+      parenDepth = Math.max(parenDepth - 1, 0);
+      continue;
+    }
+    if (char === "[") {
+      bracketDepth++;
+      continue;
+    }
+    if (char === "]") {
+      bracketDepth = Math.max(bracketDepth - 1, 0);
+      continue;
+    }
+    if (char === "{") {
+      braceDepth++;
+      continue;
+    }
+    if (char === "}") {
+      braceDepth = Math.max(braceDepth - 1, 0);
+      continue;
+    }
+
+    if (
+      (char === ";" || char === "\n") &&
+      parenDepth === 0 &&
+      bracketDepth === 0 &&
+      braceDepth === 0
+    ) {
+      lastBoundary = index + 1;
+    }
+  }
+
+  const trailingCode = code.slice(lastBoundary).trim();
+  if (!trailingCode) {
+    return null;
+  }
+
+  if (
+    /^(return|throw|if|for|while|do|switch|try|class|function|async function|interface|type|enum|import|export)\b/.test(
+      trailingCode,
+    ) ||
+    trailingCode === "}" ||
+    trailingCode.endsWith("}")
+  ) {
+    return null;
+  }
+
+  return lastBoundary;
+}
+
+function withAutoReturn(code: string): string | null {
+  const start = findLastExpressionStart(code);
+  if (start === null) {
+    return null;
+  }
+
+  const prefix = code.slice(0, start);
+  const tail = code.slice(start);
+  const match = tail.match(/^(\s*)/);
+  const indentation = match?.[1] ?? "";
+  const expression = tail.slice(indentation.length);
+  return `${prefix}${indentation}return ${expression}`;
+}
+
+async function buildQueryScript(
+  code: string,
+  mode: "expression" | "auto-return" | "statements",
+): Promise<vm.Script> {
+  const statementCode = mode === "auto-return" ? withAutoReturn(code) : code;
+  if (mode === "auto-return" && statementCode === null) {
+    throw new Error("Unable to infer trailing expression");
+  }
   const wrappedCode =
     mode === "expression"
       ? `
@@ -59,7 +209,7 @@ async function buildQueryScript(code: string, mode: "expression" | "statements")
       `
       : `
         (async () => {
-          ${code}
+          ${statementCode}
         })()
       `;
   const jsCode = await transpile(wrappedCode);
@@ -79,7 +229,11 @@ export async function executeQuery(
   try {
     script = await buildQueryScript(code, "expression");
   } catch {
-    script = await buildQueryScript(code, "statements");
+    try {
+      script = await buildQueryScript(code, "auto-return");
+    } catch {
+      script = await buildQueryScript(code, "statements");
+    }
   }
 
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -100,6 +254,9 @@ export async function executeQuery(
       clearTimeout,
       setInterval,
       clearInterval,
+      URL,
+      TextDecoder,
+      TextEncoder,
     };
     let result: unknown;
     try {

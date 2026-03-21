@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { createHash } from "crypto";
 import { statSync } from "fs";
 import type { TraceAdapter } from "../shared/adapter";
 import type { Session } from "../shared/types";
@@ -7,7 +7,7 @@ export class SessionManager {
   private readonly sessions = new Map<string, Session>();
 
   create(file: string, adapter: TraceAdapter, data: unknown, alias?: string): Session {
-    const id = this.generateId();
+    const id = this.generateId(file);
     let fileSizeBytes = 0;
     try {
       const stat = statSync(file);
@@ -39,11 +39,32 @@ export class SessionManager {
   }
 
   get(id: string): Session | undefined {
-    return this.sessions.get(id);
+    const session = this.sessions.get(id);
+    if (session) {
+      return session;
+    }
+
+    for (const entry of this.sessions.values()) {
+      if (entry.alias === id) {
+        return entry;
+      }
+    }
+
+    return undefined;
   }
 
   unload(id: string): boolean {
-    return this.sessions.delete(id);
+    if (this.sessions.delete(id)) {
+      return true;
+    }
+
+    for (const [sessionId, session] of this.sessions.entries()) {
+      if (session.alias === id) {
+        return this.sessions.delete(sessionId);
+      }
+    }
+
+    return false;
   }
 
   count(): number {
@@ -54,12 +75,17 @@ export class SessionManager {
     this.sessions.clear();
   }
 
-  private generateId(): string {
-    let id = "";
-    do {
-      id = randomBytes(4).toString("hex");
-    } while (this.sessions.has(id));
-    return id;
+  private generateId(file: string): string {
+    const hash = createHash("sha256").update(file).digest("hex").slice(0, 8);
+    if (!this.sessions.has(hash)) {
+      return hash;
+    }
+
+    let suffix = 1;
+    while (this.sessions.has(`${hash}-${suffix}`)) {
+      suffix++;
+    }
+    return `${hash}-${suffix}`;
   }
 }
 

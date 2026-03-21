@@ -7,7 +7,7 @@ export default defineCommand({
   meta: { description: "Execute TypeScript code against a loaded trace" },
   args: {
     session: { type: "positional", description: "Session ID", required: true },
-    code: { type: "positional", description: "TypeScript code to execute" },
+    code: { type: "positional", description: "TypeScript code to execute", required: false },
     file: { type: "string", alias: "f", description: "Read code from file instead" },
     timeout: { type: "string", alias: "t", description: "Timeout in ms" },
     route: { type: "string", alias: "r", description: "Route for analyze sessions" },

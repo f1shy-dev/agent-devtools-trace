@@ -148,6 +148,204 @@ describe("server router", () => {
     expect(sessionManager.count()).toBe(0);
   });
 
+  it("returns the trailing expression from statement-mode queries", async () => {
+    const sessionId = await loadSession("/home/agent-devtools-trace/test-traces/trace-minimal.json");
+
+    const bareExpressionResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: "const count = events.length;\ncount",
+        }),
+      }),
+    );
+    expect(bareExpressionResponse.status).toBe(200);
+    const bareExpressionPayload = await parseJson(bareExpressionResponse);
+    expect(bareExpressionPayload.result).toBe("3");
+
+    const bareObjectResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: "const count = events.length;\n({ count })",
+        }),
+      }),
+    );
+    expect(bareObjectResponse.status).toBe(200);
+    const bareObjectPayload = await parseJson(bareObjectResponse);
+    expect(JSON.parse(bareObjectPayload.result)).toEqual({ count: 3 });
+
+    const explicitReturnResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: "const count = events.length; return { count };",
+        }),
+      }),
+    );
+    expect(explicitReturnResponse.status).toBe(200);
+    const explicitReturnPayload = await parseJson(explicitReturnResponse);
+    expect(JSON.parse(explicitReturnPayload.result)).toEqual({ count: 3 });
+
+    const expressionResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: "events.length",
+        }),
+      }),
+    );
+    expect(expressionResponse.status).toBe(200);
+    const expressionPayload = await parseJson(expressionResponse);
+    expect(expressionPayload.result).toBe("3");
+  });
+
+  it("exposes common web globals in the query sandbox", async () => {
+    const sessionId = await loadSession("/home/agent-devtools-trace/test-traces/trace-minimal.json");
+
+    const urlResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: 'new URL("https://example.com/path?q=1").hostname',
+        }),
+      }),
+    );
+    expect(urlResponse.status).toBe(200);
+    const urlPayload = await parseJson(urlResponse);
+    expect(urlPayload.result).toBe('"example.com"');
+
+    const encoderResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: 'Array.from(new TextEncoder().encode("hi"))',
+        }),
+      }),
+    );
+    expect(encoderResponse.status).toBe(200);
+    const encoderPayload = await parseJson(encoderResponse);
+    expect(JSON.parse(encoderPayload.result)).toEqual([104, 105]);
+
+    const decoderResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: 'new TextDecoder().decode(Uint8Array.from([104, 105]))',
+        }),
+      }),
+    );
+    expect(decoderResponse.status).toBe(200);
+    const decoderPayload = await parseJson(decoderResponse);
+    expect(decoderPayload.result).toBe('"hi"');
+  });
+
+  it("resolves aliases for get, query, and delete without shadowing ids", async () => {
+    const aliasedSessionId = await loadSession(
+      "/home/agent-devtools-trace/test-traces/trace-minimal.json",
+      "mytrace",
+    );
+    const directSessionId = await loadSession(
+      createTraceFile({
+        metadata: { source: "alias-shadow" },
+        traceEvents: [
+          {
+            cat: "loading",
+            name: "ResourceSendRequest",
+            ph: "I",
+            pid: 1,
+            tid: 1,
+            ts: 1,
+            args: { data: { url: "https://example.com" } },
+          },
+        ],
+      }),
+      aliasedSessionId,
+    );
+
+    const getAliasResponse = await handleRequest(
+      new Request("http://trace-server/sessions/mytrace"),
+    );
+    expect(getAliasResponse.status).toBe(200);
+    const getAliasPayload = await parseJson(getAliasResponse);
+    expect(getAliasPayload.id).toBe(aliasedSessionId);
+    expect(getAliasPayload.alias).toBe("mytrace");
+
+    const getIdResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${aliasedSessionId}`),
+    );
+    expect(getIdResponse.status).toBe(200);
+    const getIdPayload = await parseJson(getIdResponse);
+    expect(getIdPayload.id).toBe(aliasedSessionId);
+
+    const queryAliasResponse = await handleRequest(
+      new Request("http://trace-server/sessions/mytrace/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: "events.length" }),
+      }),
+    );
+    expect(queryAliasResponse.status).toBe(200);
+    const queryAliasPayload = await parseJson(queryAliasResponse);
+    expect(queryAliasPayload.result).toBe("3");
+
+    const queryIdResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${aliasedSessionId}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: "events.length" }),
+      }),
+    );
+    expect(queryIdResponse.status).toBe(200);
+    const queryIdPayload = await parseJson(queryIdResponse);
+    expect(queryIdPayload.result).toBe("3");
+
+    const directIdResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${directSessionId}`),
+    );
+    expect(directIdResponse.status).toBe(200);
+    const directIdPayload = await parseJson(directIdResponse);
+    expect(directIdPayload.id).toBe(directSessionId);
+    expect(directIdPayload.alias).toBe(aliasedSessionId);
+
+    const deleteAliasResponse = await handleRequest(
+      new Request("http://trace-server/sessions/mytrace", { method: "DELETE" }),
+    );
+    expect(deleteAliasResponse.status).toBe(200);
+    expect(sessionManager.count()).toBe(1);
+    expect(sessionManager.get(directSessionId)?.alias).toBe(aliasedSessionId);
+  });
+
+  it("generates deterministic session ids from file paths with collision suffixes", async () => {
+    const filePath = "/home/agent-devtools-trace/test-traces/trace-minimal.json";
+
+    const firstSessionId = await loadSession(filePath);
+    expect(firstSessionId).toMatch(/^[0-9a-f]{8}$/);
+
+    const secondSessionId = await loadSession(filePath);
+    expect(secondSessionId).toBe(`${firstSessionId}-1`);
+
+    const unloadResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${firstSessionId}`, { method: "DELETE" }),
+    );
+    expect(unloadResponse.status).toBe(200);
+
+    const thirdSessionId = await loadSession(filePath);
+    expect(thirdSessionId).toBe(firstSessionId);
+  });
+
+  it("allows the query command to omit CODE when using --file", () => {
+    const source = readFileSync("/home/agent-devtools-trace/src/cli/commands/query.ts", "utf8");
+    expect(source).toContain('code: { type: "positional", description: "TypeScript code to execute", required: false }');
+  });
+
   it("serves built-in heuristic endpoints", async () => {
     const screenshotOne = Buffer.from("fake-jpeg-1").toString("base64");
     const screenshotTwo = Buffer.from("fake-jpeg-2").toString("base64");
