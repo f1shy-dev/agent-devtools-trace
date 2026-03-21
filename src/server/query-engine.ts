@@ -179,13 +179,14 @@ function findLastExpressionStart(code: string): number | null {
 }
 
 function withAutoReturn(code: string): string | null {
-  const start = findLastExpressionStart(code);
+  const trimmedCode = code.trimEnd();
+  const start = findLastExpressionStart(trimmedCode);
   if (start === null) {
     return null;
   }
 
-  const prefix = code.slice(0, start);
-  const tail = code.slice(start);
+  const prefix = trimmedCode.slice(0, start);
+  const tail = trimmedCode.slice(start);
   const match = tail.match(/^(\s*)/);
   const indentation = match?.[1] ?? "";
   const expression = tail.slice(indentation.length);

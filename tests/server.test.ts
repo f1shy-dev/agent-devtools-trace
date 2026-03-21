@@ -164,6 +164,19 @@ describe("server router", () => {
     const bareExpressionPayload = await parseJson(bareExpressionResponse);
     expect(bareExpressionPayload.result).toBe("3");
 
+    const bareExpressionTrailingNewlineResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: "const count = events.length;\ncount\n",
+        }),
+      }),
+    );
+    expect(bareExpressionTrailingNewlineResponse.status).toBe(200);
+    const bareExpressionTrailingNewlinePayload = await parseJson(bareExpressionTrailingNewlineResponse);
+    expect(bareExpressionTrailingNewlinePayload.result).toBe("3");
+
     const bareObjectResponse = await handleRequest(
       new Request(`http://trace-server/sessions/${sessionId}/query`, {
         method: "POST",
@@ -176,6 +189,32 @@ describe("server router", () => {
     expect(bareObjectResponse.status).toBe(200);
     const bareObjectPayload = await parseJson(bareObjectResponse);
     expect(JSON.parse(bareObjectPayload.result)).toEqual({ count: 3 });
+
+    const bareObjectTrailingNewlineResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: "const count = events.length;\n({ count })\n",
+        }),
+      }),
+    );
+    expect(bareObjectTrailingNewlineResponse.status).toBe(200);
+    const bareObjectTrailingNewlinePayload = await parseJson(bareObjectTrailingNewlineResponse);
+    expect(JSON.parse(bareObjectTrailingNewlinePayload.result)).toEqual({ count: 3 });
+
+    const gcPatternResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: "const items = events.filter(e => e.cat?.includes('loading'));\nconst count = items.length;\n({ count })\n",
+        }),
+      }),
+    );
+    expect(gcPatternResponse.status).toBe(200);
+    const gcPatternPayload = await parseJson(gcPatternResponse);
+    expect(JSON.parse(gcPatternPayload.result)).toEqual({ count: 2 });
 
     const explicitReturnResponse = await handleRequest(
       new Request(`http://trace-server/sessions/${sessionId}/query`, {
