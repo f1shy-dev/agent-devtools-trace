@@ -5,9 +5,9 @@ import { divider, formatBytes, formatNumber, renderTable, truncateMiddle } from 
 import { ensureServer } from "../lifecycle";
 
 export default defineCommand({
-  meta: { description: "Show size breakdown for a route" },
+  meta: { description: "[next-analyze] Show size breakdown by type and environment" },
   args: {
-    session: { type: "positional", description: "Session ID", required: true },
+    session: { type: "positional", description: "Session ID or alias", required: true },
     route: { type: "string", description: "Route to analyze (default: /)" },
   },
   async run({ args }) {

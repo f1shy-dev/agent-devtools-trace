@@ -6,7 +6,7 @@ import { ensureServer } from "../lifecycle";
 export default defineCommand({
   meta: { description: "Unload a trace session" },
   args: {
-    session: { type: "positional", description: "Session ID", required: true },
+    session: { type: "positional", description: "Session ID or alias", required: true },
   },
   async run({ args }) {
     try {

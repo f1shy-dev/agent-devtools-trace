@@ -5,9 +5,9 @@ import { divider, formatNumber, renderTable, truncateMiddle } from "../format";
 import { ensureServer } from "../lifecycle";
 
 export default defineCommand({
-  meta: { description: "List top modules by dependency count" },
+  meta: { description: "[next-analyze] List top modules by dependency count" },
   args: {
-    session: { type: "positional", description: "Session ID", required: true },
+    session: { type: "positional", description: "Session ID or alias", required: true },
     route: { type: "string", description: "Route to analyze (default: /)" },
     limit: { type: "string", description: "Max modules to show (default: 50)" },
   },

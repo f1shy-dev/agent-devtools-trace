@@ -11,9 +11,9 @@ import {
 import { ensureServer } from "../lifecycle";
 
 export default defineCommand({
-  meta: { description: "List network requests from the trace" },
+  meta: { description: "[devtools] List network requests from the trace" },
   args: {
-    session: { type: "positional", description: "Session ID", required: true },
+    session: { type: "positional", description: "Session ID or alias", required: true },
   },
   async run({ args }) {
     try {

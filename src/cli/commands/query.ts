@@ -4,9 +4,9 @@ import { handleCommandError } from "../errors";
 import { ensureServer } from "../lifecycle";
 
 export default defineCommand({
-  meta: { description: "Execute TypeScript code against a loaded trace" },
+  meta: { description: "Run TypeScript code against a loaded session" },
   args: {
-    session: { type: "positional", description: "Session ID", required: true },
+    session: { type: "positional", description: "Session ID or alias", required: true },
     code: { type: "positional", description: "TypeScript code to execute", required: false },
     file: { type: "string", alias: "f", description: "Read code from file instead" },
     timeout: { type: "string", alias: "t", description: "Timeout in ms" },

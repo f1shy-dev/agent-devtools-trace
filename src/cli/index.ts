@@ -4,8 +4,14 @@ import { defineCommand, runMain } from "citty";
 const main = defineCommand({
   meta: {
     name: "trace-server",
-    version: "0.2.0",
-    description: "Load-once, query-many server for performance traces and bundle analysis",
+    version: "0.2.1",
+    description: `Load-once, query-many server for performance traces and bundle analysis.
+
+Supported formats:
+  devtools     Chrome DevTools traces (.json, .json.gz)
+               Example: trace-server load ./Trace-20260321T000742.json.gz
+  next-analyze Next.js Turbopack bundle analyzer output (directory)
+               Example: trace-server load .next/diagnostics/analyze/data`,
   },
   subCommands: {
     load: () => import("./commands/load").then((module) => module.default),

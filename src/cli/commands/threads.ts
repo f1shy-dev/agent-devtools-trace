@@ -5,9 +5,9 @@ import { formatNumber } from "../format";
 import { ensureServer } from "../lifecycle";
 
 export default defineCommand({
-  meta: { description: "Show trace threads grouped by process" },
+  meta: { description: "[devtools] Show trace threads grouped by process" },
   args: {
-    session: { type: "positional", description: "Session ID", required: true },
+    session: { type: "positional", description: "Session ID or alias", required: true },
   },
   async run({ args }) {
     try {

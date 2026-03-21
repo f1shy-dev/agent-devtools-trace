@@ -8,7 +8,7 @@ import type { NextAnalyzeSummaryResponse, SummaryResponse } from "../../shared/t
 export default defineCommand({
   meta: { description: "Show detailed session information" },
   args: {
-    session: { type: "positional", description: "Session ID", required: true },
+    session: { type: "positional", description: "Session ID or alias", required: true },
   },
   async run({ args }) {
     try {
