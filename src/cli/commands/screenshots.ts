@@ -5,9 +5,9 @@ import { formatBytes, formatTimestampMs } from "../format";
 import { ensureServer } from "../lifecycle";
 
 export default defineCommand({
-  meta: { description: "List or extract screenshots" },
+  meta: { description: "[devtools] List or extract screenshots from the trace" },
   args: {
-    session: { type: "positional", description: "Session ID", required: true },
+    session: { type: "positional", description: "Session ID or alias", required: true },
     extract: { type: "boolean", description: "Extract screenshots to disk" },
     dir: { type: "string", description: "Output directory for extraction" },
   },

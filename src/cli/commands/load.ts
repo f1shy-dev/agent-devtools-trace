@@ -6,11 +6,11 @@ import { formatNumber } from "../format";
 import { ensureServer } from "../lifecycle";
 
 export default defineCommand({
-  meta: { description: "Load a trace file into the server" },
+  meta: { description: "Load a trace file or analysis directory into the server" },
   args: {
     file: {
       type: "positional",
-      description: "Path to trace file (.json or .json.gz)",
+      description: "Path to a trace file (.json, .json.gz) or Next.js analyze directory (.next/diagnostics/analyze/data)",
       required: true,
     },
     alias: { type: "string", description: "Optional alias for the session" },
