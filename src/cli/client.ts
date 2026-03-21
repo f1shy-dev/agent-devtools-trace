@@ -75,7 +75,10 @@ export class TraceServerClient {
   }
 
   summary(id: string) {
-    return this.request<SummaryResponse | NextAnalyzeSummaryResponse>("GET", `/sessions/${id}/summary`);
+    return this.request<SummaryResponse | NextAnalyzeSummaryResponse>(
+      "GET",
+      `/sessions/${id}/summary`,
+    );
   }
 
   routes(id: string) {
@@ -87,7 +90,10 @@ export class TraceServerClient {
     if (route) params.set("route", route);
     if (limit) params.set("limit", String(limit));
     const query = params.toString();
-    return this.request<AnalyzeModulesResponse>("GET", `/sessions/${id}/modules${query ? `?${query}` : ""}`);
+    return this.request<AnalyzeModulesResponse>(
+      "GET",
+      `/sessions/${id}/modules${query ? `?${query}` : ""}`,
+    );
   }
 
   sizes(id: string, route?: string) {

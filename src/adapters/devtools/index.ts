@@ -1,7 +1,18 @@
 import { readFile } from "fs/promises";
 import { gunzipSync } from "zlib";
-import type { EndpointContext, EndpointHandler, EndpointResult, TraceAdapter } from "../../shared/adapter";
-import type { ParsedTrace, Session, TraceEvent, TraceIndexes, TraceMetadata } from "../../shared/types";
+import type {
+  EndpointContext,
+  EndpointHandler,
+  EndpointResult,
+  TraceAdapter,
+} from "../../shared/adapter";
+import type {
+  ParsedTrace,
+  Session,
+  TraceEvent,
+  TraceIndexes,
+  TraceMetadata,
+} from "../../shared/types";
 import { getCategories } from "./heuristics/categories";
 import { getLongTasks } from "./heuristics/long-tasks";
 import { getNetwork } from "./heuristics/network";

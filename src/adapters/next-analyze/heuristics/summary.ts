@@ -17,10 +17,7 @@ interface AnalyzeSummary {
   memorySizeMB: number;
 }
 
-export async function getSummary(
-  data: NextAnalyzeData,
-  session: Session,
-): Promise<AnalyzeSummary> {
+export async function getSummary(data: NextAnalyzeData, session: Session): Promise<AnalyzeSummary> {
   const analyze = data.routeAnalyzeData.get("/") ?? data.routeAnalyzeData.values().next().value;
   const topSourcesBySize = analyze
     ? Array.from({ length: analyze.sourceCount() }, (_, index) => index)

@@ -64,12 +64,8 @@ export default defineCommand({
 
       const s = summary as SummaryResponse;
 
-      console.log(
-        `${formatNumber(s.totalEvents)} events over ${formatDurationMs(s.durationMs)}`,
-      );
-      console.log(
-        `Processes: ${s.processes}  Threads: ${s.threads}  Categories: ${s.categories}`,
-      );
+      console.log(`${formatNumber(s.totalEvents)} events over ${formatDurationMs(s.durationMs)}`);
+      console.log(`Processes: ${s.processes}  Threads: ${s.threads}  Categories: ${s.categories}`);
       console.log(
         `Flags: screenshots=${s.screenshotCount}, network=${s.networkRequestCount}, sourceMaps=${s.sourceMapCount}`,
       );

@@ -19,8 +19,14 @@ export async function getSizes(
 ): Promise<SizesResponse> {
   const route = searchParams.get("route") || "/";
   const analyze = getRouteAnalyze(data.routeAnalyzeData, route);
-  const byOutputType = new Map<string, { type: string; count: number; size: number; compressedSize: number }>();
-  const byEnvironment = new Map<string, { env: string; count: number; size: number; compressedSize: number }>();
+  const byOutputType = new Map<
+    string,
+    { type: string; count: number; size: number; compressedSize: number }
+  >();
+  const byEnvironment = new Map<
+    string,
+    { env: string; count: number; size: number; compressedSize: number }
+  >();
   const outputFiles = new Map<
     string,
     { filename: string; size: number; compressedSize: number; chunkParts: number }

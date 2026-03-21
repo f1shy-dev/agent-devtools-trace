@@ -211,7 +211,10 @@ export async function handleRequest(req: Request): Promise<Response> {
       const endpoints = session.adapter.getEndpoints();
       const handler = endpoints.get(endpoint);
       if (!handler) {
-        return json({ error: `Endpoint '${endpoint}' is not available for '${session.type}' sessions` }, 404);
+        return json(
+          { error: `Endpoint '${endpoint}' is not available for '${session.type}' sessions` },
+          404,
+        );
       }
 
       try {

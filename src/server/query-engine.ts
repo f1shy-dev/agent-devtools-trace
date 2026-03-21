@@ -18,7 +18,7 @@ async function transpile(source: string): Promise<string> {
     return new bunRuntime.Transpiler({ loader: "ts" }).transformSync(source);
   }
 
-  const ts = await import("typescript").then(m => m.default ?? m);
+  const ts = await import("typescript").then((m) => m.default ?? m);
   return ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.ESNext,
@@ -94,7 +94,7 @@ function findLastExpressionStart(code: string): number | null {
       }
       if (inSingleQuote && char === "'") {
         inSingleQuote = false;
-      } else if (inDoubleQuote && char === "\"") {
+      } else if (inDoubleQuote && char === '"') {
         inDoubleQuote = false;
       } else if (inTemplate && char === "`") {
         inTemplate = false;
@@ -116,7 +116,7 @@ function findLastExpressionStart(code: string): number | null {
       inSingleQuote = true;
       continue;
     }
-    if (char === "\"") {
+    if (char === '"') {
       inDoubleQuote = true;
       continue;
     }
@@ -272,10 +272,7 @@ export async function executeQuery(
       throw error;
     }
 
-    return await Promise.race([
-      Promise.resolve(result),
-      timer,
-    ]);
+    return await Promise.race([Promise.resolve(result), timer]);
   } finally {
     if (timeoutId !== undefined) {
       clearTimeout(timeoutId);

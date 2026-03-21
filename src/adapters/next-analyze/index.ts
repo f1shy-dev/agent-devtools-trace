@@ -1,7 +1,12 @@
 import { existsSync, readdirSync, statSync } from "fs";
 import { readFile } from "fs/promises";
 import { join, relative, resolve, sep } from "path";
-import type { EndpointContext, EndpointHandler, EndpointResult, TraceAdapter } from "../../shared/adapter";
+import type {
+  EndpointContext,
+  EndpointHandler,
+  EndpointResult,
+  TraceAdapter,
+} from "../../shared/adapter";
 import { AnalyzeData, ModulesData } from "./analyze-data";
 import { getModules } from "./heuristics/modules";
 import { getRoutes } from "./heuristics/routes";
@@ -42,7 +47,10 @@ function routeToFilePath(baseDir: string, route: string): string {
 }
 
 function normalizeRouteFromFile(baseDir: string, filePath: string): string {
-  const relativeDir = relative(baseDir, filePath.replace(new RegExp(`${sep.replace(/\\/g, "\\\\")}analyze\\.data$`), ""));
+  const relativeDir = relative(
+    baseDir,
+    filePath.replace(new RegExp(`${sep.replace(/\\/g, "\\\\")}analyze\\.data$`), ""),
+  );
   if (!relativeDir || relativeDir === ".") {
     return "/";
   }
@@ -171,7 +179,10 @@ export class NextAnalyzeAdapter implements TraceAdapter<NextAnalyzeData> {
     ]);
   }
 
-  buildQueryContext(data: NextAnalyzeData, options?: Record<string, string>): Record<string, unknown> {
+  buildQueryContext(
+    data: NextAnalyzeData,
+    options?: Record<string, string>,
+  ): Record<string, unknown> {
     const routeKey = options?.route || "/";
     return {
       modules: data.modulesData,
