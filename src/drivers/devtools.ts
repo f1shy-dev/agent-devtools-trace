@@ -1,7 +1,7 @@
 import { statSync } from "fs";
 import { createHash } from "crypto";
 import { basename } from "path";
-import { DatasetSession } from "../core/dataset-session.js";
+import { DatasetSession as DatasetSessionHost } from "../core/dataset-session.js";
 import { findEmbeddedBlobs } from "../core/json-introspect.js";
 import { pretty as prettyValue, table as tableValue } from "../core/presentation.js";
 import { sanitizeFilename } from "../core/workspace.js";
@@ -13,6 +13,7 @@ import type {
   SourceDetection,
   SourceDriver,
   SourceProbe,
+  DatasetSession,
   TableProvider,
   ReportProvider,
 } from "../core/types.js";
@@ -1566,46 +1567,98 @@ function buildRequestBodies(trace: ParsedTrace) {
   return rows;
 }
 
-function buildSummary(trace: ParsedTrace) {
-  const facts = buildFacts(trace);
-  const indexes = buildIndexes(trace.traceEvents);
+async function buildSummary(session: DatasetSession) {
+  const [
+    trace,
+    facts,
+    indexes,
+    processes,
+    screenshots,
+    requests,
+    requestBodies,
+    interactions,
+    scripts,
+    sourceMaps,
+    sources,
+    frames,
+    workers,
+    layoutShifts,
+    layoutShiftClusters,
+    softNavigations,
+    framePipeline,
+    codeHotspots,
+    cpuHotspots,
+    cpuSamples,
+  ] = await Promise.all([
+    session.layers.get<ParsedTrace>("devtools/trace"),
+    session.layers.get<any[]>("devtools/facts.events"),
+    session.layers.get<any>("devtools/indexes.basic"),
+    session.layers.get<any[]>("devtools/dims.processes"),
+    session.layers.get<any[]>("devtools/dims.screenshots"),
+    session.layers.get<any[]>("devtools/dims.requests"),
+    session.layers.get<any[]>("devtools/dims.requestBodies"),
+    session.layers.get<any[]>("devtools/dims.interactions"),
+    session.layers.get<any[]>("devtools/dims.scripts"),
+    session.layers.get<any[]>("code/dims.sourceMaps"),
+    session.layers.get<any[]>("code/dims.sources"),
+    session.layers.get<any[]>("devtools/dims.frames"),
+    session.layers.get<any[]>("devtools/dims.workers"),
+    session.layers.get<any[]>("devtools/dims.layoutShifts"),
+    session.layers.get<any[]>("devtools/views.layoutShiftClusters"),
+    session.layers.get<any[]>("devtools/dims.softNavigations"),
+    session.layers.get<any[]>("devtools/views.framePipeline"),
+    session.layers.get<any[]>("devtools/views.codeHotspots"),
+    session.layers.get<any[]>("devtools/views.cpuHotspots"),
+    session.layers.get<any[]>("devtools/facts.cpuSamples"),
+  ]);
   const { minTs, maxTs } = getTraceBounds(trace.traceEvents);
   return {
     totalEvents: trace.traceEvents.length,
     durationMs: (maxTs - minTs) / 1000,
     categories: indexes.byCategory.size,
     threads: indexes.byThread.size,
-    processes: buildProcessRows(trace).length,
-    screenshots: getScreenshotEvents(trace).length,
-    networkRequests: buildRequests(trace).length,
-    networkBodies: buildRequestBodies(trace).length,
-    interactions: buildInteractions(trace).length,
-    scripts: buildScripts(trace).length,
-    sourceMaps: buildSourceMaps(trace).length,
-    sources: buildSources(trace).length,
-    frames: buildFrameRows(trace).length,
-    workers: buildWorkerRows(trace).length,
-    layoutShifts: buildLayoutShifts(trace).length,
-    layoutShiftClusters: buildLayoutShiftClusters(trace).length,
-    softNavigations: buildSoftNavigations(trace).length,
-    frameReports: buildFramePipeline(trace).length,
-    codeHotspots: buildCodeHotspots(trace).length,
-    cpuHotspots: buildCpuHotspots(trace).length,
-    cpuSamples: buildCpuSampleFacts(trace).length,
+    processes: processes.length,
+    screenshots: screenshots.length,
+    networkRequests: requests.length,
+    networkBodies: requestBodies.length,
+    interactions: interactions.length,
+    scripts: scripts.length,
+    sourceMaps: sourceMaps.length,
+    sources: sources.length,
+    frames: frames.length,
+    workers: workers.length,
+    layoutShifts: layoutShifts.length,
+    layoutShiftClusters: layoutShiftClusters.length,
+    softNavigations: softNavigations.length,
+    frameReports: framePipeline.length,
+    codeHotspots: codeHotspots.length,
+    cpuHotspots: cpuHotspots.length,
+    cpuSamples: cpuSamples.length,
     facts: facts.length,
   };
 }
 
-function buildHotspotsReport(trace: ParsedTrace) {
+async function buildHotspotsReport(session: DatasetSession) {
+  const [codeHotspots, cpuHotspots, cpuCallTrees] = await Promise.all([
+    session.layers.get<any[]>("devtools/views.codeHotspots"),
+    session.layers.get<any[]>("devtools/views.cpuHotspots"),
+    session.layers.get<any[]>("devtools/views.cpuCallTrees"),
+  ]);
   return {
-    codeHotspots: buildCodeHotspots(trace).slice(0, 50),
-    cpuHotspots: buildCpuHotspots(trace).slice(0, 50),
-    cpuCallTrees: buildCpuCallTrees(trace).slice(0, 20),
+    codeHotspots: codeHotspots.slice(0, 50),
+    cpuHotspots: cpuHotspots.slice(0, 50),
+    cpuCallTrees: cpuCallTrees.slice(0, 20),
   };
 }
 
-function buildScriptReport(trace: ParsedTrace, args?: Record<string, unknown>) {
-  const scripts = buildScripts(trace);
+async function buildScriptReport(session: DatasetSession, args?: Record<string, unknown>) {
+  const [scripts, codeHotspots, cpuHotspots, sourceMaps, sources] = await Promise.all([
+    session.layers.get<any[]>("devtools/dims.scripts"),
+    session.layers.get<any[]>("devtools/views.codeHotspots"),
+    session.layers.get<any[]>("devtools/views.cpuHotspots"),
+    session.layers.get<any[]>("code/dims.sourceMaps"),
+    session.layers.get<any[]>("code/dims.sources"),
+  ]);
   const scriptId = typeof args?.scriptId === "string" ? args.scriptId : undefined;
   const url = typeof args?.url === "string" ? args.url : undefined;
   const script = scriptId
@@ -1616,88 +1669,116 @@ function buildScriptReport(trace: ParsedTrace, args?: Record<string, unknown>) {
   if (!script) {
     return { script: null, sourceMap: null, sources: [], codeHotspots: [], cpuHotspots: [] };
   }
-  const codeHotspots = buildCodeHotspots(trace).filter(
+  const scriptCodeHotspots = codeHotspots.filter(
     (row) => row.scriptId === script.scriptId || (!!script.url && row.url === script.url),
   );
-  const cpuHotspots = buildCpuHotspots(trace).filter(
+  const scriptCpuHotspots = cpuHotspots.filter(
     (row) => row.scriptId === script.scriptId || (!!script.url && row.url === script.url),
   );
   const sourceMap = script.sourceMapId
-    ? (buildSourceMaps(trace).find((row) => row.sourceMapId === script.sourceMapId) ?? null)
+    ? (sourceMaps.find((row) => row.sourceMapId === script.sourceMapId) ?? null)
     : null;
-  const sources = sourceMap
-    ? buildSources(trace).filter((row) => row.sourceMapId === sourceMap.sourceMapId)
+  const scriptSources = sourceMap
+    ? sources.filter((row) => row.sourceMapId === sourceMap.sourceMapId)
     : [];
   return {
     script,
     sourceMap,
-    sources,
-    codeHotspots,
-    cpuHotspots,
+    sources: scriptSources,
+    codeHotspots: scriptCodeHotspots,
+    cpuHotspots: scriptCpuHotspots,
   };
 }
 
-function buildFrameReport(trace: ParsedTrace, args?: Record<string, unknown>) {
+async function buildFrameReport(session: DatasetSession, args?: Record<string, unknown>) {
+  const [framePipeline, screenshots, visualChanges] = await Promise.all([
+    session.layers.get<any[]>("devtools/views.framePipeline"),
+    session.layers.get<any[]>("devtools/dims.screenshots"),
+    session.layers.get<any[]>("devtools/views.visualChanges"),
+  ]);
   const frameSequence = typeof args?.frameSequence === "string" ? args.frameSequence : undefined;
   const frame = frameSequence
-    ? buildFramePipeline(trace).find((row) => row.frameSequence === frameSequence)
-    : buildFramePipeline(trace)[0];
+    ? framePipeline.find((row) => row.frameSequence === frameSequence)
+    : framePipeline[0];
   if (!frame) {
     return { frame: null, screenshot: null, visualChanges: [] };
   }
   const screenshot = frame.screenshotArtifactId
-    ? (buildScreenshots(trace).find((row) => row.artifactId === frame.screenshotArtifactId) ?? null)
+    ? (screenshots.find((row) => row.artifactId === frame.screenshotArtifactId) ?? null)
     : null;
-  const visualChanges = buildVisualChanges(trace).filter(
+  const frameVisualChanges = visualChanges.filter(
     (row) => row.tsUs >= frame.tsUs - 16_000 && row.tsUs <= frame.tsUs + 16_000,
   );
-  return { frame, screenshot, visualChanges };
+  return { frame, screenshot, visualChanges: frameVisualChanges };
 }
 
-function buildRequestReport(trace: ParsedTrace, args?: Record<string, unknown>) {
+async function buildRequestReport(session: DatasetSession, args?: Record<string, unknown>) {
+  const [requests, visualChanges] = await Promise.all([
+    session.layers.get<any[]>("devtools/dims.requests"),
+    session.layers.get<any[]>("devtools/views.visualChanges"),
+  ]);
   const requestId = typeof args?.requestId === "string" ? args.requestId : undefined;
   const url = typeof args?.url === "string" ? args.url : undefined;
   const request = requestId
-    ? buildRequests(trace).find((row) => row.requestId === requestId)
+    ? requests.find((row) => row.requestId === requestId)
     : url
-      ? buildRequests(trace).find((row) => row.url === url)
-      : buildRequests(trace)[0];
+      ? requests.find((row) => row.url === url)
+      : requests[0];
   if (!request) {
     return { request: null };
   }
-  const visualChanges = buildVisualChanges(trace).filter(
+  const requestVisualChanges = visualChanges.filter(
     (row) =>
       row.tsUs >= request.startTimeUs && row.tsUs <= (request.endTimeUs ?? request.startTimeUs),
   );
-  return { request, visualChanges };
+  return { request, visualChanges: requestVisualChanges };
 }
 
-function buildSoftNavigationReport(trace: ParsedTrace, args?: Record<string, unknown>) {
+async function buildSoftNavigationReport(session: DatasetSession, args?: Record<string, unknown>) {
+  const [softNavigations, layoutShifts, screenshots, requests] = await Promise.all([
+    session.layers.get<any[]>("devtools/dims.softNavigations"),
+    session.layers.get<any[]>("devtools/dims.layoutShifts"),
+    session.layers.get<any[]>("devtools/dims.screenshots"),
+    session.layers.get<any[]>("devtools/dims.requests"),
+  ]);
   const softNavigationId =
     typeof args?.softNavigationId === "string" ? args.softNavigationId : undefined;
   const softNavigation = softNavigationId
-    ? buildSoftNavigations(trace).find((row) => row.softNavigationId === softNavigationId)
-    : buildSoftNavigations(trace)[0];
+    ? softNavigations.find((row) => row.softNavigationId === softNavigationId)
+    : softNavigations[0];
   if (!softNavigation) {
     return { softNavigation: null, layoutShifts: [], screenshots: [], requests: [] };
   }
   return {
     softNavigation,
-    layoutShifts: buildLayoutShifts(trace).filter(
+    layoutShifts: layoutShifts.filter(
       (row) => row.tsUs >= softNavigation.startTsUs && row.tsUs <= softNavigation.endTsUs,
     ),
-    screenshots: buildScreenshots(trace).filter(
+    screenshots: screenshots.filter(
       (row) => row.tsUs >= softNavigation.startTsUs && row.tsUs <= softNavigation.endTsUs,
     ),
-    requests: buildRequests(trace).filter(
+    requests: requests.filter(
       (row) =>
         row.startTimeUs >= softNavigation.startTsUs && row.startTimeUs <= softNavigation.endTsUs,
     ),
   };
 }
 
-function buildInteractionReport(trace: ParsedTrace, interactionId?: string) {
-  const interactions = buildInteractions(trace);
+async function buildInteractionReport(session: DatasetSession, args?: Record<string, unknown>) {
+  const [trace, interactions, renderMeasures, framePipeline, requests, layoutShifts, softNavigations, screenshots, codeHotspots, cpuHotspots] =
+    await Promise.all([
+      session.layers.get<ParsedTrace>("devtools/trace"),
+      session.layers.get<any[]>("devtools/dims.interactions"),
+      session.layers.get<any[]>("devtools/views.renderMeasures"),
+      session.layers.get<any[]>("devtools/views.framePipeline"),
+      session.layers.get<any[]>("devtools/dims.requests"),
+      session.layers.get<any[]>("devtools/dims.layoutShifts"),
+      session.layers.get<any[]>("devtools/dims.softNavigations"),
+      session.layers.get<any[]>("devtools/dims.screenshots"),
+      session.layers.get<any[]>("devtools/views.codeHotspots"),
+      session.layers.get<any[]>("devtools/views.interactionCpuHotspots"),
+    ]);
+  const interactionId = typeof args?.id === "string" ? args.id : undefined;
   const target = interactionId
     ? interactions.find((row) => row.interactionId === interactionId)
     : interactions[0];
@@ -1716,11 +1797,11 @@ function buildInteractionReport(trace: ParsedTrace, interactionId?: string) {
       cpuHotspots: [],
     };
   }
-  const renderMeasures = buildRenderMeasures(trace).filter(
+  const interactionRenderMeasures = renderMeasures.filter(
     (row) => row.tsUs >= target.startTsUs && row.tsUs <= target.endTsUs,
   );
   const componentCounts = new Map<string, number>();
-  for (const row of renderMeasures) {
+  for (const row of interactionRenderMeasures) {
     if (!row.componentName) continue;
     componentCounts.set(row.componentName, (componentCounts.get(row.componentName) ?? 0) + 1);
   }
@@ -1738,22 +1819,22 @@ function buildInteractionReport(trace: ParsedTrace, interactionId?: string) {
       tsUs: event.ts,
       durMs: (event.dur ?? 0) / 1000,
     }));
-  const framePipeline = buildFramePipeline(trace).filter(
+  const interactionFramePipeline = framePipeline.filter(
     (row) => row.tsUs >= target.startTsUs && row.tsUs <= target.endTsUs,
   );
-  const requests = buildRequests(trace).filter(
+  const interactionRequests = requests.filter(
     (row) => row.startTimeUs >= target.startTsUs && row.startTimeUs <= target.endTsUs,
   );
-  const layoutShifts = buildLayoutShifts(trace).filter(
+  const interactionLayoutShifts = layoutShifts.filter(
     (row) => row.tsUs >= target.startTsUs && row.tsUs <= target.endTsUs,
   );
-  const softNavigations = buildSoftNavigations(trace).filter(
+  const interactionSoftNavigations = softNavigations.filter(
     (row) => row.startTsUs <= target.endTsUs && row.endTsUs >= target.startTsUs,
   );
-  const screenshots = buildScreenshots(trace).filter(
+  const interactionScreenshots = screenshots.filter(
     (row) => row.tsUs >= target.startTsUs && row.tsUs <= target.endTsUs,
   );
-  const codeHotspots = buildCodeHotspots(trace)
+  const interactionCodeHotspots = codeHotspots
     .filter((row) =>
       row.rawEventIds.some((eventId: string) => {
         const rawIndex = Number(String(eventId).replace("evt:", ""));
@@ -1762,38 +1843,38 @@ function buildInteractionReport(trace: ParsedTrace, interactionId?: string) {
       }),
     )
     .slice(0, 20);
-  const cpuHotspots = buildInteractionCpuHotspots(trace)
+  const interactionCpuHotspots = cpuHotspots
     .filter((row) => row.scopeId === target.interactionId)
     .slice(0, 20);
-  const droppedFrames = framePipeline.filter((row) => row.state === "STATE_DROPPED").length;
+  const droppedFrames = interactionFramePipeline.filter((row) => row.state === "STATE_DROPPED").length;
   return {
     interaction: {
       ...target,
       provenance: { rawIds: target.rawEventIds, layer: "devtools.interaction" },
     },
-    renders: renderMeasures,
+    renders: interactionRenderMeasures,
     topComponents: [...componentCounts.entries()]
       .map(([componentName, count]) => ({ componentName, count }))
       .sort((a, b) => b.count - a.count || a.componentName.localeCompare(b.componentName))
       .slice(0, 20),
     eventDispatches,
     droppedFrames,
-    requests,
-    layoutShifts,
-    softNavigations,
-    screenshots,
-    framePipeline,
-    codeHotspots,
-    cpuHotspots,
+    requests: interactionRequests,
+    layoutShifts: interactionLayoutShifts,
+    softNavigations: interactionSoftNavigations,
+    screenshots: interactionScreenshots,
+    framePipeline: interactionFramePipeline,
+    codeHotspots: interactionCodeHotspots,
+    cpuHotspots: interactionCpuHotspots,
   };
 }
 
-function prettySummaryReport(trace: ParsedTrace) {
-  return prettyValue(buildSummary(trace));
+async function prettySummaryReport(session: DatasetSession) {
+  return prettyValue(await buildSummary(session));
 }
 
-function prettyInteractionReport(trace: ParsedTrace, args?: Record<string, unknown>) {
-  const report = buildInteractionReport(trace, typeof args?.id === "string" ? args.id : undefined);
+async function prettyInteractionReport(session: DatasetSession, args?: Record<string, unknown>) {
+  const report = await buildInteractionReport(session, args);
   if (!report.interaction) return "No interaction found.";
   const parts = [
     `interaction ${report.interaction.interactionId} ${report.interaction.type} ${report.interaction.durationMs.toFixed(1)}ms`,
@@ -1824,8 +1905,8 @@ function prettyInteractionReport(trace: ParsedTrace, args?: Record<string, unkno
   return parts.join("\n");
 }
 
-function prettyFrameReport(trace: ParsedTrace, args?: Record<string, unknown>) {
-  const report = buildFrameReport(trace, args);
+async function prettyFrameReport(session: DatasetSession, args?: Record<string, unknown>) {
+  const report = await buildFrameReport(session, args);
   if (!report.frame) return "No frame report found.";
   return prettyValue({
     frameSequence: report.frame.frameSequence,
@@ -1835,8 +1916,8 @@ function prettyFrameReport(trace: ParsedTrace, args?: Record<string, unknown>) {
   });
 }
 
-function prettyRequestReport(trace: ParsedTrace, args?: Record<string, unknown>) {
-  const report = buildRequestReport(trace, args);
+async function prettyRequestReport(session: DatasetSession, args?: Record<string, unknown>) {
+  const report = await buildRequestReport(session, args);
   if (!report.request) return "No request found.";
   return prettyValue({
     request: report.request,
@@ -1844,8 +1925,8 @@ function prettyRequestReport(trace: ParsedTrace, args?: Record<string, unknown>)
   });
 }
 
-function prettySoftNavigationReport(trace: ParsedTrace, args?: Record<string, unknown>) {
-  const report = buildSoftNavigationReport(trace, args);
+async function prettySoftNavigationReport(session: DatasetSession, args?: Record<string, unknown>) {
+  const report = await buildSoftNavigationReport(session, args);
   if (!report.softNavigation) return "No soft navigation found.";
   return prettyValue({
     softNavigation: report.softNavigation,
@@ -1855,8 +1936,8 @@ function prettySoftNavigationReport(trace: ParsedTrace, args?: Record<string, un
   });
 }
 
-function prettyHotspotsReport(trace: ParsedTrace) {
-  const report = buildHotspotsReport(trace);
+async function prettyHotspotsReport(session: DatasetSession) {
+  const report = await buildHotspotsReport(session);
   return [
     "code hotspots",
     tableValue(
@@ -1883,8 +1964,8 @@ function prettyHotspotsReport(trace: ParsedTrace) {
   ].join("\n");
 }
 
-function prettyScriptReport(trace: ParsedTrace, args?: Record<string, unknown>) {
-  const report = buildScriptReport(trace, args);
+async function prettyScriptReport(session: DatasetSession, args?: Record<string, unknown>) {
+  const report = await buildScriptReport(session, args);
   if (!report.script) return "No script found.";
   return prettyValue({
     script: report.script,
@@ -1897,58 +1978,81 @@ function prettyScriptReport(trace: ParsedTrace, args?: Record<string, unknown>) 
 
 class DevtoolsArtifactProvider implements ArtifactProvider {
   id = "devtools-artifacts";
+  private cachedList: ArtifactRef[] | null = null;
+  private cachedIndex: Map<string, ArtifactRef> | null = null;
+  private cachedScreenshots: Map<number, any> | null = null;
+  private cachedRequestBodies: Map<string, any> | null = null;
+
   constructor(private readonly trace: ParsedTrace) {}
 
-  async list(_session: DatasetSession) {
-    const screenshots = buildScreenshots(this.trace).map<ArtifactRef>((row) => ({
-      id: row.artifactId,
-      kind: "image",
-      mediaType: row.mediaType,
-      sizeBytes: row.sizeBytes,
-      filenameHint: row.filename,
-      metadata: { screenshotId: row.screenshotId },
-    }));
-    const scripts = buildScripts(this.trace)
-      .filter((row) => row.sourceTextArtifactId)
-      .map<ArtifactRef>((row) => ({
-        id: row.sourceTextArtifactId,
-        kind: "text",
-        mediaType: "text/javascript",
-        sizeBytes: row.sourceTextBytes,
-        filenameHint: `${row.scriptId}-${basename(row.url ?? `script-${row.scriptId}`)}`,
-        metadata: { scriptId: row.scriptId, url: row.url },
-      }));
-    const sourceMaps = buildSourceMaps(this.trace).map<ArtifactRef>((row) => ({
-      id: row.artifactId,
-      kind: "json",
-      mediaType: "application/source-map+json",
-      filenameHint: `${row.sourceMapId}.json`,
-      metadata: { url: row.url, sourceMapUrl: row.sourceMapUrl },
-    }));
-    const sources = buildSources(this.trace)
-      .filter((row) => row.artifactId)
-      .map<ArtifactRef>((row) => ({
+  private ensureCache() {
+    if (this.cachedList && this.cachedIndex && this.cachedScreenshots && this.cachedRequestBodies) {
+      return;
+    }
+    const screenshots = buildScreenshots(this.trace);
+    const scripts = buildScripts(this.trace);
+    const sourceMaps = buildSourceMaps(this.trace);
+    const sources = buildSources(this.trace);
+    const requestBodies = buildRequestBodies(this.trace);
+    this.cachedScreenshots = new Map(screenshots.map((row) => [row.index, row]));
+    this.cachedRequestBodies = new Map(requestBodies.map((row) => [row.artifactId, row]));
+    const items: ArtifactRef[] = [
+      ...screenshots.map<ArtifactRef>((row) => ({
         id: row.artifactId,
-        kind: "text",
-        mediaType: "text/plain",
+        kind: "image",
+        mediaType: row.mediaType,
         sizeBytes: row.sizeBytes,
-        filenameHint: row.sourcePath,
-        metadata: { sourcePath: row.sourcePath },
-      }));
-    const requestBodies = buildRequestBodies(this.trace).map<ArtifactRef>((row) => ({
-      id: row.artifactId,
-      kind: row.decodedKind === "binary" ? "binary" : row.decodedKind === "json" ? "json" : "text",
-      mediaType: row.mediaType,
-      sizeBytes: row.sizeBytes,
-      filenameHint: row.filename,
-      metadata: {
-        requestId: row.requestId,
-        url: row.url,
-        path: row.path,
-        confidence: row.confidence,
-      },
-    }));
-    return [...screenshots, ...scripts, ...sourceMaps, ...sources, ...requestBodies];
+        filenameHint: row.filename,
+        metadata: { screenshotId: row.screenshotId },
+      })),
+      ...scripts
+        .filter((row) => row.sourceTextArtifactId)
+        .map<ArtifactRef>((row) => ({
+          id: row.sourceTextArtifactId,
+          kind: "text",
+          mediaType: "text/javascript",
+          sizeBytes: row.sourceTextBytes,
+          filenameHint: `${row.scriptId}-${basename(row.url ?? `script-${row.scriptId}`)}`,
+          metadata: { scriptId: row.scriptId, url: row.url },
+        })),
+      ...sourceMaps.map<ArtifactRef>((row) => ({
+        id: row.artifactId,
+        kind: "json",
+        mediaType: "application/source-map+json",
+        filenameHint: `${row.sourceMapId}.json`,
+        metadata: { url: row.url, sourceMapUrl: row.sourceMapUrl },
+      })),
+      ...sources
+        .filter((row) => row.artifactId)
+        .map<ArtifactRef>((row) => ({
+          id: row.artifactId,
+          kind: "text",
+          mediaType: "text/plain",
+          sizeBytes: row.sizeBytes,
+          filenameHint: row.sourcePath,
+          metadata: { sourcePath: row.sourcePath },
+        })),
+      ...requestBodies.map<ArtifactRef>((row) => ({
+        id: row.artifactId,
+        kind: row.decodedKind === "binary" ? "binary" : row.decodedKind === "json" ? "json" : "text",
+        mediaType: row.mediaType,
+        sizeBytes: row.sizeBytes,
+        filenameHint: row.filename,
+        metadata: {
+          requestId: row.requestId,
+          url: row.url,
+          path: row.path,
+          confidence: row.confidence,
+        },
+      })),
+    ];
+    this.cachedList = items;
+    this.cachedIndex = new Map(items.map((item) => [item.id, item]));
+  }
+
+  async list(_session: DatasetSession) {
+    this.ensureCache();
+    return this.cachedList!;
   }
 
   canHandle(artifactId: string) {
@@ -1956,14 +2060,15 @@ class DevtoolsArtifactProvider implements ArtifactProvider {
   }
 
   async get(_session: DatasetSession, artifactId: string) {
-    const items = await this.list(_session);
-    return items.find((item) => item.id === artifactId) ?? null;
+    this.ensureCache();
+    return this.cachedIndex!.get(artifactId) ?? null;
   }
 
   async read(_session: DatasetSession, artifactId: string): Promise<ArtifactData | null> {
+    this.ensureCache();
     if (artifactId.startsWith("artifact:devtools:screenshot:")) {
       const id = Number(artifactId.split(":").pop());
-      const row = buildScreenshots(this.trace).find((item) => item.index === id);
+      const row = this.cachedScreenshots!.get(id);
       if (!row) return null;
       return {
         kind: "image",
@@ -2015,7 +2120,7 @@ class DevtoolsArtifactProvider implements ArtifactProvider {
       };
     }
     if (artifactId.startsWith("artifact:devtools:request-body:")) {
-      const row = buildRequestBodies(this.trace).find((item) => item.artifactId === artifactId);
+      const row = this.cachedRequestBodies!.get(artifactId);
       if (!row) return null;
       if (row.decodedKind === "json") {
         return {
@@ -2110,18 +2215,23 @@ const requestBodiesCollection: FileCollectionProvider = {
   },
 };
 
-function buildCapabilityMap(trace: ParsedTrace): CapabilityMap {
+async function buildCapabilityMap(session: DatasetSession): Promise<CapabilityMap> {
+  const [trace, screenshots, scripts, sourceMaps, sources, requestBodies] = await Promise.all([
+    session.layers.get<ParsedTrace>("devtools/trace"),
+    session.layers.get<any[]>("devtools/dims.screenshots"),
+    session.layers.get<any[]>("devtools/dims.scripts"),
+    session.layers.get<any[]>("code/dims.sourceMaps"),
+    session.layers.get<any[]>("code/dims.sources"),
+    session.layers.get<any[]>("devtools/dims.requestBodies"),
+  ]);
   const events = trace.traceEvents;
-  const sourceMaps = Array.isArray(trace.metadata.sourceMaps) ? trace.metadata.sourceMaps : [];
-  const sources = buildSources(trace);
-  const scripts = buildScripts(trace);
   return {
-    screenshots: getScreenshotEvents(trace).length > 0,
+    screenshots: screenshots.length > 0,
     cpuProfile: events.some((event) => event.name === "ProfileChunk"),
     eventTiming: events.some((event) => event.name === "EventTiming"),
     framePipeline: events.some((event) => event.name === "PipelineReporter"),
     networkTiming: events.some((event) => event.name === "ResourceSendRequest"),
-    networkBodies: buildRequestBodies(trace).length > 0,
+    networkBodies: requestBodies.length > 0,
     inlineScriptSource: scripts.some((row) => row.hasSourceText),
     sourceMaps: sourceMaps.length > 0,
     sourceContents: sources.some((row) => row.hasContent),
@@ -2152,22 +2262,20 @@ function createTable(
   };
 }
 
-function createReport(
+function createSessionReport(
   name: string,
   description: string,
-  run: (trace: ParsedTrace, args?: Record<string, unknown>) => unknown,
-  pretty?: (trace: ParsedTrace, args?: Record<string, unknown>) => string,
+  run: (session: DatasetSession, args?: Record<string, unknown>) => Promise<unknown>,
+  pretty?: (session: DatasetSession, args?: Record<string, unknown>) => Promise<string>,
 ): ReportProvider {
   return {
     name,
     description,
     async run(session, args) {
-      const trace = (await session.layers.get<ParsedTrace>("devtools/trace")) as ParsedTrace;
-      return run(trace, args);
+      return run(session, args);
     },
     async pretty(session, args) {
-      const trace = (await session.layers.get<ParsedTrace>("devtools/trace")) as ParsedTrace;
-      return pretty ? pretty(trace, args) : prettyValue(run(trace, args));
+      return pretty ? pretty(session, args) : prettyValue(await run(session, args));
     },
   };
 }
@@ -2194,12 +2302,16 @@ export class DevtoolsDriver implements SourceDriver {
 
   async open(sourcePath: string, detection: SourceDetection) {
     const trace = await parseTraceFile(sourcePath);
-    const session = new DatasetSession({
+    let capabilityMapPromise: Promise<CapabilityMap> | null = null;
+    const session = new DatasetSessionHost({
       sourcePath,
       detection,
       itemCount: trace.traceEvents.length,
       rawDocument: async () => ({ metadata: trace.metadata, traceEvents: trace.traceEvents }),
-      capabilities: async () => buildCapabilityMap(trace),
+      capabilities: async () => {
+        capabilityMapPromise ??= buildCapabilityMap(session);
+        return capabilityMapPromise;
+      },
     });
 
     session.layers.register({ key: "devtools/trace", evictable: false, build: async () => trace });
@@ -2943,60 +3055,59 @@ export class DevtoolsDriver implements SourceDriver {
     });
 
     session.registerReport(
-      createReport(
+      createSessionReport(
         "devtools.summary",
         "High-level DevTools trace summary",
-        (traceValue) => buildSummary(traceValue),
-        (traceValue) => prettySummaryReport(traceValue),
+        buildSummary,
+        prettySummaryReport,
       ),
     );
     session.registerReport(
-      createReport(
+      createSessionReport(
         "devtools.interaction",
         "Detailed interaction report",
-        (traceValue, args) =>
-          buildInteractionReport(traceValue, typeof args?.id === "string" ? args.id : undefined),
-        (traceValue, args) => prettyInteractionReport(traceValue, args),
+        buildInteractionReport,
+        prettyInteractionReport,
       ),
     );
     session.registerReport(
-      createReport(
+      createSessionReport(
         "devtools.frame",
         "Frame pipeline report",
-        (traceValue, args) => buildFrameReport(traceValue, args),
-        (traceValue, args) => prettyFrameReport(traceValue, args),
+        buildFrameReport,
+        prettyFrameReport,
       ),
     );
     session.registerReport(
-      createReport(
+      createSessionReport(
         "devtools.request",
         "Request-centric report",
-        (traceValue, args) => buildRequestReport(traceValue, args),
-        (traceValue, args) => prettyRequestReport(traceValue, args),
+        buildRequestReport,
+        prettyRequestReport,
       ),
     );
     session.registerReport(
-      createReport(
+      createSessionReport(
         "devtools.soft-navigation",
         "Soft-navigation report",
-        (traceValue, args) => buildSoftNavigationReport(traceValue, args),
-        (traceValue, args) => prettySoftNavigationReport(traceValue, args),
+        buildSoftNavigationReport,
+        prettySoftNavigationReport,
       ),
     );
     session.registerReport(
-      createReport(
+      createSessionReport(
         "devtools.hotspots",
         "Combined code and CPU hotspot summary",
-        (traceValue) => buildHotspotsReport(traceValue),
-        (traceValue) => prettyHotspotsReport(traceValue),
+        buildHotspotsReport,
+        prettyHotspotsReport,
       ),
     );
     session.registerReport(
-      createReport(
+      createSessionReport(
         "devtools.script",
         "Script-centric report with source and hotspot attribution",
-        (traceValue, args) => buildScriptReport(traceValue, args),
-        (traceValue, args) => prettyScriptReport(traceValue, args),
+        buildScriptReport,
+        prettyScriptReport,
       ),
     );
 
