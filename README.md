@@ -41,12 +41,20 @@ The CLI is intentionally generic. The most important commands are:
 - `trace-server load <file> [--alias <name>]`
 - `trace-server sessions`
 - `trace-server info <session>`
+- `trace-server caps <session>`
 - `trace-server schema <session>`
 - `trace-server tables <session>`
-- `trace-server report <session> <report> [--args '{...}']`
+- `trace-server table <session> <table> [--limit N] [--select a,b] [--where col:op:value] [--sort col] [--desc] [--pretty|--table-format]`
+- `trace-server reports <session>`
+- `trace-server report <session> <report> [--args '{...}'] [--pretty]`
 - `trace-server query <session> <code>`
 - `trace-server artifacts <session>`
+- `trace-server artifact <session> <artifact-id>`
+- `trace-server collections <session>`
+- `trace-server materialize <session> <artifact-id>`
 - `trace-server export <session> <collection>`
+- `trace-server layers <session>`
+- `trace-server leases <session>`
 - `trace-server unload <session>`
 - `trace-server status`
 - `trace-server stop`
@@ -67,11 +75,13 @@ trace-server schema app-trace
 trace-server tables app-trace
 ```
 
-### 3. Run generic reports
+### 3. Run generic reports and table queries
 
 ```bash
-trace-server report app-trace devtools.summary
-trace-server report app-trace devtools.interaction --args '{"id":"4758"}'
+trace-server report app-trace devtools.summary --pretty
+trace-server report app-trace devtools.interaction --args '{"id":"4758"}' --pretty
+
+trace-server table app-trace devtools.views.codeHotspots --select functionName,totalDurationMs --sort totalDurationMs --desc --limit 10 --table-format
 ```
 
 ### 4. Use the query runtime
