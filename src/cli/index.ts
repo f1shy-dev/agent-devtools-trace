@@ -69,7 +69,7 @@ function shorten(text: string, max = 72) {
 const main = defineCommand({
   meta: {
     name: "trace-server",
-    version: "1.0.0",
+    version: "2.0.0",
     description:
       "Runtime-first dataset kernel for DevTools traces and raw JSON. Query through ds, pretty(...), and table(...).",
   },
