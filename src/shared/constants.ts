@@ -8,5 +8,6 @@ export const PID_FILE =
   (process.env.TRACE_SERVER_SOCKET
     ? `${process.env.TRACE_SERVER_SOCKET}.pid`
     : join(ADT_DIR, "server.pid"));
-export const DEFAULT_QUERY_TIMEOUT = 30000;
+export const WORKSPACE_ROOT = join(ADT_DIR, "workspaces");
+export const DEFAULT_QUERY_TIMEOUT = 30_000;
 export const MAX_RESULT_SIZE = 10 * 1024 * 1024;

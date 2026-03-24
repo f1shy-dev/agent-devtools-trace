@@ -1,22 +1,53 @@
-import { SOCKET_PATH } from "../shared/constants";
+import http from "node:http";
+import { SOCKET_PATH } from "../shared/constants.js";
 import type {
-  AnalyzeModulesResponse,
-  AnalyzeRoutesResponse,
-  AnalyzeSizesResponse,
-  CategoriesResponse,
-  ExtractScreenshotsResponse,
+  FileCollectionInfo,
   HealthResponse,
-  LongTasksResponse,
   LoadedSessionResponse,
-  NextAnalyzeSummaryResponse,
-  NetworkResponse,
   QueryResponse,
-  ScreenshotsResponse,
+  SchemaResponse,
   SessionInfo,
   StopServerResponse,
-  SummaryResponse,
-  ThreadsResponse,
-} from "../shared/types";
+  TableInfo,
+  ReportInfo,
+} from "../shared/types.js";
+
+async function requestUnix<T>(socketPath: string, method: string, path: string, body?: unknown): Promise<T> {
+  const payload = body ? JSON.stringify(body) : undefined;
+  const headers: Record<string, string> = {};
+  if (payload !== undefined) {
+    headers["Content-Type"] = "application/json";
+    headers["Content-Length"] = Buffer.byteLength(payload).toString();
+  }
+
+  return new Promise<T>((resolve, reject) => {
+    const req = http.request(
+      {
+        socketPath,
+        path,
+        method,
+        headers,
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+        res.on("end", () => {
+          const text = Buffer.concat(chunks).toString("utf8");
+          const data = text ? (JSON.parse(text) as Record<string, any>) : {};
+          if ((res.statusCode ?? 500) >= 400) {
+            reject(new Error(typeof data.error === "string" ? data.error : `HTTP ${res.statusCode}`));
+            return;
+          }
+          resolve(data as T);
+        });
+      },
+    );
+
+    req.on("error", reject);
+    if (payload !== undefined) req.write(payload);
+    req.end();
+  });
+}
 
 export class TraceServerClient {
   private readonly socketPath: string;
@@ -25,25 +56,8 @@ export class TraceServerClient {
     this.socketPath = socketPath;
   }
 
-  async request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const options = {
-      method,
-      unix: this.socketPath,
-      headers: body ? { "Content-Type": "application/json" } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    } as RequestInit & { unix: string };
-    const response = await fetch(`http://localhost${path}`, options);
-
-    if (response.headers.get("content-type")?.startsWith("image/")) {
-      return (await response.arrayBuffer()) as T;
-    }
-
-    const text = await response.text();
-    const data = text ? (JSON.parse(text) as Record<string, any>) : {};
-    if (!response.ok) {
-      throw new Error(typeof data.error === "string" ? data.error : `HTTP ${response.status}`);
-    }
-    return data as T;
+  request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    return requestUnix<T>(this.socketPath, method, path, body);
   }
 
   health() {
@@ -67,73 +81,73 @@ export class TraceServerClient {
     return this.request<{ ok: boolean; sessionId: string }>("DELETE", `/sessions/${id}`);
   }
 
-  query(id: string, code: string, timeout?: number, route?: string) {
+  query(id: string, code: string, timeout?: number) {
     const body: Record<string, any> = { code };
     if (timeout) body.timeout = timeout;
-    if (route) body.route = route;
     return this.request<QueryResponse>("POST", `/sessions/${id}/query`, body);
   }
 
-  summary(id: string) {
-    return this.request<SummaryResponse | NextAnalyzeSummaryResponse>(
-      "GET",
-      `/sessions/${id}/summary`,
+  caps(id: string) {
+    return this.request<{ caps: Record<string, unknown> }>("GET", `/sessions/${id}/caps`);
+  }
+
+  schema(id: string) {
+    return this.request<SchemaResponse>("GET", `/sessions/${id}/schema`);
+  }
+
+  async tables(id: string) {
+    const result = await this.request<{ tables: TableInfo[] }>("GET", `/sessions/${id}/tables`);
+    return result.tables;
+  }
+
+  table(id: string, table: string, limit?: number) {
+    return this.request<{ table: string; rows: unknown[] }>(
+      "POST",
+      `/sessions/${id}/tables/${encodeURIComponent(table)}/query`,
+      limit ? { limit } : {},
     );
   }
 
-  routes(id: string) {
-    return this.request<AnalyzeRoutesResponse>("GET", `/sessions/${id}/routes`);
+  async reports(id: string) {
+    const result = await this.request<{ reports: ReportInfo[] }>("GET", `/sessions/${id}/reports`);
+    return result.reports;
   }
 
-  modules(id: string, route?: string, limit?: number) {
-    const params = new URLSearchParams();
-    if (route) params.set("route", route);
-    if (limit) params.set("limit", String(limit));
-    const query = params.toString();
-    return this.request<AnalyzeModulesResponse>(
-      "GET",
-      `/sessions/${id}/modules${query ? `?${query}` : ""}`,
+  report(id: string, report: string, args?: Record<string, unknown>) {
+    return this.request<{ report: string; result: unknown }>(
+      "POST",
+      `/sessions/${id}/reports/${encodeURIComponent(report)}`,
+      args ?? {},
     );
   }
 
-  sizes(id: string, route?: string) {
-    const query = route ? `?route=${encodeURIComponent(route)}` : "";
-    return this.request<AnalyzeSizesResponse>("GET", `/sessions/${id}/sizes${query}`);
+  async artifacts(id: string) {
+    const result = await this.request<{ artifacts: unknown[] }>("GET", `/sessions/${id}/artifacts`);
+    return result.artifacts;
   }
 
-  async categories(id: string) {
-    const result = await this.request<CategoriesResponse>("GET", `/sessions/${id}/categories`);
-    return result.categories;
+  materializeArtifact(id: string, artifactId: string, options?: Record<string, unknown>) {
+    return this.request<any>(
+      "POST",
+      `/sessions/${id}/artifacts/${encodeURIComponent(artifactId)}/materialize`,
+      options ?? {},
+    );
   }
 
-  async threads(id: string) {
-    const result = await this.request<ThreadsResponse>("GET", `/sessions/${id}/threads`);
-    return result.threads;
+  async collections(id: string) {
+    const result = await this.request<{ collections: FileCollectionInfo[] }>(
+      "GET",
+      `/sessions/${id}/files/collections`,
+    );
+    return result.collections;
   }
 
-  async network(id: string) {
-    const result = await this.request<NetworkResponse>("GET", `/sessions/${id}/network`);
-    return result.requests;
-  }
-
-  longTasks(id: string, threshold?: number) {
-    const query = threshold ? `?threshold=${threshold}` : "";
-    return this.request<LongTasksResponse>("GET", `/sessions/${id}/long-tasks${query}`);
-  }
-
-  async screenshots(id: string) {
-    const result = await this.request<ScreenshotsResponse>("GET", `/sessions/${id}/screenshots`);
-    return result.screenshots;
-  }
-
-  screenshotImage(id: string, index: number) {
-    return this.request<ArrayBuffer>("GET", `/sessions/${id}/screenshots/${index}`);
-  }
-
-  extractScreenshots(id: string, outputDir?: string) {
-    return this.request<ExtractScreenshotsResponse>("POST", `/sessions/${id}/screenshots/extract`, {
-      outputDir,
-    });
+  exportCollection(id: string, collectionId: string, options?: Record<string, unknown>) {
+    return this.request<any>(
+      "POST",
+      `/sessions/${id}/files/collections/${encodeURIComponent(collectionId)}/export`,
+      options ?? {},
+    );
   }
 
   stopServer() {

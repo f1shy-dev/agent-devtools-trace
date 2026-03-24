@@ -1,23 +1,20 @@
 import { existsSync } from "fs";
 import { resolve } from "path";
-import { loadTrace } from "../loader";
-import { DEFAULT_QUERY_TIMEOUT } from "../shared/constants";
-import { executeQuery, QueryTimeoutError, serializeResult } from "./query-engine";
-import { sessionManager } from "./sessions";
+import { loadSource } from "../loader/index.js";
+import { DEFAULT_QUERY_TIMEOUT } from "../shared/constants.js";
+import { executeQuery, QueryTimeoutError, serializeResult } from "./query-engine.js";
+import { sessionManager } from "./sessions.js";
 
-function json(data: unknown, status = 200): Response {
+function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { "Content-Type": "application/json" },
   });
 }
 
-async function readJson(req: Request): Promise<Record<string, any>> {
+async function readJson(req: Request) {
   const text = await req.text();
-  if (text.length === 0) {
-    return {};
-  }
-
+  if (!text) return {} as Record<string, any>;
   try {
     return JSON.parse(text) as Record<string, any>;
   } catch {
@@ -25,22 +22,15 @@ async function readJson(req: Request): Promise<Record<string, any>> {
   }
 }
 
-function formatSession(
-  session: ReturnType<typeof sessionManager.get> extends infer T ? Exclude<T, undefined> : never,
-) {
+function formatSession(session: ReturnType<typeof sessionManager.get> extends infer T ? Exclude<T, undefined> : never) {
   return {
-    id: session.id,
-    file: session.file,
+    ...session.manifest,
     alias: session.alias,
-    type: session.type,
-    events: session.adapter.getItemCount(session.data),
-    loadedAt: session.loadedAt.toISOString(),
-    fileSizeBytes: session.fileSizeBytes,
     memorySizeMB: session.memorySizeMB,
   };
 }
 
-function handleHealth(): Response {
+function handleHealth() {
   return json({
     status: "ok",
     pid: process.pid,
@@ -50,40 +40,33 @@ function handleHealth(): Response {
   });
 }
 
-async function handleLoadSession(req: Request): Promise<Response> {
+async function handleLoadSession(req: Request) {
   let body: Record<string, any>;
   try {
     body = await readJson(req);
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : String(error) }, 400);
   }
-
   const file = body.file;
   const alias = body.alias;
   if (typeof file !== "string" || file.length === 0) {
     return json({ error: "file is required" }, 400);
   }
-
   const resolved = resolve(file);
   if (!existsSync(resolved)) {
     return json({ error: `File not found: ${resolved}` }, 404);
   }
 
   try {
-    const { adapter, data } = await loadTrace(resolved);
-    const session = sessionManager.create(
-      resolved,
-      adapter,
-      data,
-      typeof alias === "string" ? alias : undefined,
-    );
+    const session = sessionManager.create(await loadSource(resolved), typeof alias === "string" ? alias : undefined);
     return json(
       {
-        sessionId: session.id,
-        file: session.file,
+        sessionId: session.manifest.id,
         alias: session.alias,
-        type: session.type,
-        events: session.adapter.getItemCount(session.data),
+        kind: session.manifest.kind,
+        source: session.manifest.source,
+        fileSizeBytes: session.manifest.fileSizeBytes,
+        itemCount: session.manifest.itemCount,
         memorySizeMB: session.memorySizeMB,
       },
       201,
@@ -93,66 +76,25 @@ async function handleLoadSession(req: Request): Promise<Response> {
   }
 }
 
-function handleListSessions(): Response {
-  return json({
-    sessions: sessionManager.list().map((session) => formatSession(session)),
-  });
-}
-
-function handleGetSession(id: string): Response {
-  const session = sessionManager.get(id);
-  if (!session) {
-    return json({ error: `Session not found: ${id}` }, 404);
-  }
-
-  return json(formatSession(session));
-}
-
-function handleDeleteSession(id: string): Response {
-  if (!sessionManager.unload(id)) {
-    return json({ error: `Session not found: ${id}` }, 404);
-  }
-
-  return json({ ok: true, sessionId: id });
-}
-
-async function handleQuery(sessionId: string, req: Request): Promise<Response> {
+async function handleQuery(sessionId: string, req: Request) {
   const session = sessionManager.get(sessionId);
-  if (!session) {
-    return json({ error: `Session not found: ${sessionId}` }, 404);
-  }
-
+  if (!session) return json({ error: `Session not found: ${sessionId}` }, 404);
   let body: Record<string, any>;
   try {
     body = await readJson(req);
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : String(error) }, 400);
   }
-
   const code = body.code;
-  const timeout =
-    typeof body.timeout === "number" && Number.isFinite(body.timeout) && body.timeout > 0
-      ? body.timeout
-      : DEFAULT_QUERY_TIMEOUT;
+  const timeout = typeof body.timeout === "number" && Number.isFinite(body.timeout) && body.timeout > 0 ? body.timeout : DEFAULT_QUERY_TIMEOUT;
   if (typeof code !== "string" || code.length === 0) {
     return json({ error: "code is required" }, 400);
   }
-
-  const queryOptions: Record<string, string> = {};
-  if (typeof body.route === "string") {
-    queryOptions.route = body.route;
-  }
-
   const start = performance.now();
   try {
-    const result = await executeQuery(session, code, timeout, queryOptions);
-    const duration = Math.round(performance.now() - start);
+    const result = await executeQuery(session, code, timeout);
     const serialized = serializeResult(result);
-    return json({
-      result: serialized.serialized,
-      duration,
-      truncated: serialized.truncated,
-    });
+    return json({ result: serialized.serialized, duration: Math.round(performance.now() - start), truncated: serialized.truncated });
   } catch (error) {
     return json(
       {
@@ -164,7 +106,7 @@ async function handleQuery(sessionId: string, req: Request): Promise<Response> {
   }
 }
 
-function handleStop(): Response {
+function handleStop() {
   setTimeout(() => process.exit(0), 100);
   return json({ ok: true, message: "Server stopping..." });
 }
@@ -174,69 +116,113 @@ export async function handleRequest(req: Request): Promise<Response> {
   const { pathname } = url;
   const method = req.method;
 
-  if (method === "GET" && pathname === "/health") {
-    return handleHealth();
-  }
-  if (method === "POST" && pathname === "/sessions") {
-    return handleLoadSession(req);
-  }
-  if (method === "GET" && pathname === "/sessions") {
-    return handleListSessions();
-  }
+  if (method === "GET" && pathname === "/health") return handleHealth();
+  if (method === "POST" && pathname === "/sessions") return handleLoadSession(req);
+  if (method === "GET" && pathname === "/sessions") return json({ sessions: sessionManager.list() });
+  if (method === "POST" && pathname === "/server/stop") return handleStop();
 
   const sessionMatch = pathname.match(/^\/sessions\/([^/]+)$/);
   if (sessionMatch) {
-    const id = sessionMatch[1];
-    if (method === "GET") {
-      return handleGetSession(id);
-    }
+    const session = sessionManager.get(sessionMatch[1]!);
+    if (!session) return json({ error: `Session not found: ${sessionMatch[1]}` }, 404);
+    if (method === "GET") return json(formatSession(session));
     if (method === "DELETE") {
-      return handleDeleteSession(id);
+      sessionManager.unload(sessionMatch[1]!);
+      return json({ ok: true, sessionId: sessionMatch[1] });
     }
   }
 
-  const heuristicMatch = pathname.match(/^\/sessions\/([^/]+)\/(\w[\w-]*)(?:\/(.+))?$/);
-  if (heuristicMatch && (method === "GET" || method === "POST")) {
-    const [, id, endpoint, subpath] = heuristicMatch;
-    if (endpoint === "query") {
-      if (method === "POST") {
-        return handleQuery(id, req);
-      }
-    } else {
-      const session = sessionManager.get(id);
-      if (!session) {
-        return json({ error: `Session not found: ${id}` }, 404);
-      }
+  const queryMatch = pathname.match(/^\/sessions\/([^/]+)\/query$/);
+  if (queryMatch && method === "POST") return handleQuery(queryMatch[1]!, req);
 
-      const endpoints = session.adapter.getEndpoints();
-      const handler = endpoints.get(endpoint);
-      if (!handler) {
-        return json(
-          { error: `Endpoint '${endpoint}' is not available for '${session.type}' sessions` },
-          404,
-        );
-      }
-
-      try {
-        const result = await handler({
-          session,
-          method,
-          searchParams: url.searchParams,
-          subpath,
-          readBody: () => readJson(req),
-        });
-        if (result instanceof Response) {
-          return result;
-        }
-        return json(result);
-      } catch (error) {
-        return json({ error: error instanceof Error ? error.message : String(error) }, 400);
-      }
-    }
+  const capsMatch = pathname.match(/^\/sessions\/([^/]+)\/caps$/);
+  if (capsMatch && method === "GET") {
+    const session = sessionManager.get(capsMatch[1]!);
+    if (!session) return json({ error: `Session not found: ${capsMatch[1]}` }, 404);
+    return json({ caps: await session.getCapabilityMap() });
   }
 
-  if (method === "POST" && pathname === "/server/stop") {
-    return handleStop();
+  const schemaMatch = pathname.match(/^\/sessions\/([^/]+)\/schema$/);
+  if (schemaMatch && method === "GET") {
+    const session = sessionManager.get(schemaMatch[1]!);
+    if (!session) return json({ error: `Session not found: ${schemaMatch[1]}` }, 404);
+    return json({
+      kind: session.manifest.kind,
+      namespaces: [...new Set([...session.listTables().map((t) => t.name.split(".")[0] ?? "default"), ...session.listReports().map((r) => r.name.split(".")[0] ?? "default")])].sort(),
+      tables: session.listTables(),
+      reports: session.listReports(),
+      collections: session.listCollections(),
+    });
+  }
+
+  const tablesMatch = pathname.match(/^\/sessions\/([^/]+)\/tables$/);
+  if (tablesMatch && method === "GET") {
+    const session = sessionManager.get(tablesMatch[1]!);
+    if (!session) return json({ error: `Session not found: ${tablesMatch[1]}` }, 404);
+    return json({ tables: session.listTables() });
+  }
+
+  const tableQueryMatch = pathname.match(/^\/sessions\/([^/]+)\/tables\/([^/]+)\/query$/);
+  if (tableQueryMatch && method === "POST") {
+    const [, sessionId, tableName] = tableQueryMatch;
+    const session = sessionManager.get(sessionId!);
+    if (!session) return json({ error: `Session not found: ${sessionId}` }, 404);
+    const table = session.getTable(decodeURIComponent(tableName!));
+    if (!table) return json({ error: `Table not found: ${tableName}` }, 404);
+    const body = (await readJson(req).catch(() => ({}))) as Record<string, any>;
+    const limit = typeof body.limit === "number" && Number.isFinite(body.limit) && body.limit > 0 ? body.limit : undefined;
+    const rows = await table.rows(session, { limit });
+    return json({ table: table.name, rows });
+  }
+
+  const reportsMatch = pathname.match(/^\/sessions\/([^/]+)\/reports$/);
+  if (reportsMatch && method === "GET") {
+    const session = sessionManager.get(reportsMatch[1]!);
+    if (!session) return json({ error: `Session not found: ${reportsMatch[1]}` }, 404);
+    return json({ reports: session.listReports() });
+  }
+
+  const reportRunMatch = pathname.match(/^\/sessions\/([^/]+)\/reports\/([^/]+)$/);
+  if (reportRunMatch && method === "POST") {
+    const [, sessionId, reportName] = reportRunMatch;
+    const session = sessionManager.get(sessionId!);
+    if (!session) return json({ error: `Session not found: ${sessionId}` }, 404);
+    const report = session.getReport(decodeURIComponent(reportName!));
+    if (!report) return json({ error: `Report not found: ${reportName}` }, 404);
+    const body = await readJson(req).catch(() => ({}));
+    return json({ report: report.name, result: await report.run(session, body) });
+  }
+
+  const artifactsMatch = pathname.match(/^\/sessions\/([^/]+)\/artifacts$/);
+  if (artifactsMatch && method === "GET") {
+    const session = sessionManager.get(artifactsMatch[1]!);
+    if (!session) return json({ error: `Session not found: ${artifactsMatch[1]}` }, 404);
+    return json({ artifacts: await session.listArtifacts() });
+  }
+
+  const artifactMaterializeMatch = pathname.match(/^\/sessions\/([^/]+)\/artifacts\/(.+)\/materialize$/);
+  if (artifactMaterializeMatch && method === "POST") {
+    const session = sessionManager.get(artifactMaterializeMatch[1]!);
+    if (!session) return json({ error: `Session not found: ${artifactMaterializeMatch[1]}` }, 404);
+    const artifactId = decodeURIComponent(artifactMaterializeMatch[2]!);
+    const body = await readJson(req).catch(() => ({}));
+    return json(await session.materializeArtifact(artifactId, body));
+  }
+
+  const collectionsMatch = pathname.match(/^\/sessions\/([^/]+)\/files\/collections$/);
+  if (collectionsMatch && method === "GET") {
+    const session = sessionManager.get(collectionsMatch[1]!);
+    if (!session) return json({ error: `Session not found: ${collectionsMatch[1]}` }, 404);
+    return json({ collections: session.listCollections() });
+  }
+
+  const collectionExportMatch = pathname.match(/^\/sessions\/([^/]+)\/files\/collections\/([^/]+)\/export$/);
+  if (collectionExportMatch && method === "POST") {
+    const [, sessionId, collectionId] = collectionExportMatch;
+    const session = sessionManager.get(sessionId!);
+    if (!session) return json({ error: `Session not found: ${sessionId}` }, 404);
+    const body = await readJson(req).catch(() => ({}));
+    return json(await session.exportCollection(decodeURIComponent(collectionId!), body));
   }
 
   return json({ error: "Not found" }, 404);

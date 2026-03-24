@@ -1,90 +1,68 @@
 import { createHash } from "crypto";
-import { statSync } from "fs";
-import type { TraceAdapter } from "../shared/adapter";
-import type { Session } from "../shared/types";
+import type { DatasetSession as DatasetSessionContract } from "../core/types.js";
+import type { SessionInfo } from "../shared/types.js";
 
 export class SessionManager {
-  private readonly sessions = new Map<string, Session>();
+  private readonly sessions = new Map<string, DatasetSessionContract>();
 
-  create(file: string, adapter: TraceAdapter, data: unknown, alias?: string): Session {
-    const id = this.generateId(file);
-    let fileSizeBytes = 0;
-    try {
-      const stat = statSync(file);
-      if (stat.isFile()) {
-        fileSizeBytes = stat.size;
-      }
-    } catch {}
-    const memorySizeMB = Number((process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2));
-    const session: Session = {
-      id,
-      file,
-      alias,
-      type: adapter.type,
-      data,
-      adapter,
-      loadedAt: new Date(),
-      fileSizeBytes,
-      memorySizeMB,
-    };
-
+  create(session: DatasetSessionContract, alias?: string) {
+    const id = this.generateId(session.manifest.source);
+    session.setId(id);
+    session.alias = alias;
     this.sessions.set(id, session);
     return session;
   }
 
-  list(): Session[] {
-    return [...this.sessions.values()].sort(
-      (left, right) => left.loadedAt.getTime() - right.loadedAt.getTime(),
-    );
+  list() {
+    return [...this.sessions.values()].map<SessionInfo>((session) => ({
+      ...session.manifest,
+      alias: session.alias,
+      memorySizeMB: session.memorySizeMB,
+    }));
   }
 
-  get(id: string): Session | undefined {
-    const session = this.sessions.get(id);
-    if (session) {
-      return session;
+  get(id: string) {
+    const direct = this.sessions.get(id);
+    if (direct) return direct;
+    for (const session of this.sessions.values()) {
+      if (session.alias === id) return session;
     }
-
-    for (const entry of this.sessions.values()) {
-      if (entry.alias === id) {
-        return entry;
-      }
-    }
-
     return undefined;
   }
 
-  unload(id: string): boolean {
-    if (this.sessions.delete(id)) {
+  unload(id: string) {
+    const direct = this.sessions.get(id);
+    if (direct) {
+      this.sessions.delete(id);
+      void direct.dispose();
       return true;
     }
-
     for (const [sessionId, session] of this.sessions.entries()) {
       if (session.alias === id) {
-        return this.sessions.delete(sessionId);
+        this.sessions.delete(sessionId);
+        void session.dispose();
+        return true;
       }
     }
-
     return false;
   }
 
-  count(): number {
+  count() {
     return this.sessions.size;
   }
 
-  clear(): void {
+  clear() {
+    for (const session of this.sessions.values()) {
+      void session.dispose();
+    }
     this.sessions.clear();
   }
 
-  private generateId(file: string): string {
+  private generateId(file: string) {
     const hash = createHash("sha256").update(file).digest("hex").slice(0, 8);
-    if (!this.sessions.has(hash)) {
-      return hash;
-    }
-
+    if (!this.sessions.has(hash)) return hash;
     let suffix = 1;
-    while (this.sessions.has(`${hash}-${suffix}`)) {
-      suffix++;
-    }
+    while (this.sessions.has(`${hash}-${suffix}`)) suffix++;
     return `${hash}-${suffix}`;
   }
 }

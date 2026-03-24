@@ -1,10 +1,11 @@
 import vm from "node:vm";
-import { DEFAULT_QUERY_TIMEOUT, MAX_RESULT_SIZE } from "../shared/constants";
-import type { Session } from "../shared/types";
+import { transform } from "esbuild";
+import ts from "typescript";
+import { DEFAULT_QUERY_TIMEOUT, MAX_RESULT_SIZE } from "../shared/constants.js";
+import type { DatasetSession } from "../core/types.js";
 
 export class QueryTimeoutError extends Error {
   readonly timeout: number;
-
   constructor(timeout: number) {
     super(`Query timed out after ${timeout}ms`);
     this.name = "QueryTimeoutError";
@@ -13,18 +14,22 @@ export class QueryTimeoutError extends Error {
 }
 
 async function transpile(source: string): Promise<string> {
-  const bunRuntime = globalThis.Bun;
-  if (bunRuntime) {
-    return new bunRuntime.Transpiler({ loader: "ts" }).transformSync(source);
+  try {
+    const result = await transform(source, {
+      loader: "ts",
+      format: "esm",
+      target: "es2022",
+      sourcemap: false,
+    });
+    return result.code;
+  } catch {
+    return ts.transpileModule(source, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+    }).outputText;
   }
-
-  const ts = await import("typescript").then((m) => m.default ?? m);
-  return ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.ESNext,
-      target: ts.ScriptTarget.ESNext,
-    },
-  }).outputText;
 }
 
 export function serializeResult(result: any): { serialized: string; truncated: boolean } {
@@ -34,18 +39,10 @@ export function serializeResult(result: any): { serialized: string; truncated: b
   } catch {
     str = String(result);
   }
-
-  if (typeof str !== "string") {
-    str = "null";
-  }
-
+  if (typeof str !== "string") str = "null";
   if (str.length > MAX_RESULT_SIZE) {
-    return {
-      serialized: str.slice(0, MAX_RESULT_SIZE),
-      truncated: true,
-    };
+    return { serialized: str.slice(0, MAX_RESULT_SIZE), truncated: true };
   }
-
   return { serialized: str, truncated: false };
 }
 
@@ -62,19 +59,16 @@ function findLastExpressionStart(code: string): number | null {
   let escaped = false;
 
   for (let index = 0; index < code.length; index++) {
-    const char = code[index];
+    const char = code[index]!;
     const next = code[index + 1];
 
     if (inLineComment) {
       if (char === "\n") {
         inLineComment = false;
-        if (parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
-          lastBoundary = index + 1;
-        }
+        if (parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) lastBoundary = index + 1;
       }
       continue;
     }
-
     if (inBlockComment) {
       if (char === "*" && next === "/") {
         inBlockComment = false;
@@ -82,7 +76,6 @@ function findLastExpressionStart(code: string): number | null {
       }
       continue;
     }
-
     if (inSingleQuote || inDoubleQuote || inTemplate) {
       if (escaped) {
         escaped = false;
@@ -92,13 +85,9 @@ function findLastExpressionStart(code: string): number | null {
         escaped = true;
         continue;
       }
-      if (inSingleQuote && char === "'") {
-        inSingleQuote = false;
-      } else if (inDoubleQuote && char === '"') {
-        inDoubleQuote = false;
-      } else if (inTemplate && char === "`") {
-        inTemplate = false;
-      }
+      if (inSingleQuote && char === "'") inSingleQuote = false;
+      else if (inDoubleQuote && char === '"') inDoubleQuote = false;
+      else if (inTemplate && char === "`") inTemplate = false;
       continue;
     }
 
@@ -125,107 +114,48 @@ function findLastExpressionStart(code: string): number | null {
       continue;
     }
 
-    if (char === "(") {
-      parenDepth++;
-      continue;
-    }
-    if (char === ")") {
-      parenDepth = Math.max(parenDepth - 1, 0);
-      continue;
-    }
-    if (char === "[") {
-      bracketDepth++;
-      continue;
-    }
-    if (char === "]") {
-      bracketDepth = Math.max(bracketDepth - 1, 0);
-      continue;
-    }
-    if (char === "{") {
-      braceDepth++;
-      continue;
-    }
-    if (char === "}") {
-      braceDepth = Math.max(braceDepth - 1, 0);
-      continue;
-    }
-
-    if (
-      (char === ";" || char === "\n") &&
-      parenDepth === 0 &&
-      bracketDepth === 0 &&
-      braceDepth === 0
-    ) {
+    if (char === "(") parenDepth++;
+    else if (char === ")") parenDepth = Math.max(parenDepth - 1, 0);
+    else if (char === "[") bracketDepth++;
+    else if (char === "]") bracketDepth = Math.max(bracketDepth - 1, 0);
+    else if (char === "{") braceDepth++;
+    else if (char === "}") braceDepth = Math.max(braceDepth - 1, 0);
+    else if ((char === ";" || char === "\n") && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
       lastBoundary = index + 1;
     }
   }
 
-  const trailingCode = code.slice(lastBoundary).trim();
-  if (!trailingCode) {
+  const trailing = code.slice(lastBoundary).trim();
+  if (!trailing) return null;
+  if (/^(return|throw|if|for|while|do|switch|try|class|function|async function|interface|type|enum|import|export)\b/.test(trailing)) {
     return null;
   }
-
-  if (
-    /^(return|throw|if|for|while|do|switch|try|class|function|async function|interface|type|enum|import|export)\b/.test(
-      trailingCode,
-    ) ||
-    trailingCode === "}" ||
-    trailingCode.endsWith("}")
-  ) {
-    return null;
-  }
-
+  if (trailing === "}" || trailing.endsWith("}")) return null;
   return lastBoundary;
 }
 
 function withAutoReturn(code: string): string | null {
-  const trimmedCode = code.trimEnd();
-  const start = findLastExpressionStart(trimmedCode);
-  if (start === null) {
-    return null;
-  }
-
-  const prefix = trimmedCode.slice(0, start);
-  const tail = trimmedCode.slice(start);
-  const match = tail.match(/^(\s*)/);
-  const indentation = match?.[1] ?? "";
+  const trimmed = code.trimEnd();
+  const start = findLastExpressionStart(trimmed);
+  if (start === null) return null;
+  const prefix = trimmed.slice(0, start);
+  const tail = trimmed.slice(start);
+  const indentation = tail.match(/^(\s*)/)?.[1] ?? "";
   const expression = tail.slice(indentation.length);
   return `${prefix}${indentation}return ${expression}`;
 }
 
-async function buildQueryScript(
-  code: string,
-  mode: "expression" | "auto-return" | "statements",
-): Promise<vm.Script> {
+async function buildQueryScript(code: string, mode: "expression" | "auto-return" | "statements") {
   const statementCode = mode === "auto-return" ? withAutoReturn(code) : code;
-  if (mode === "auto-return" && statementCode === null) {
-    throw new Error("Unable to infer trailing expression");
-  }
+  if (mode === "auto-return" && statementCode === null) throw new Error("Unable to infer trailing expression");
   const wrappedCode =
     mode === "expression"
-      ? `
-        (async () => {
-          return (${code});
-        })()
-      `
-      : `
-        (async () => {
-          ${statementCode}
-        })()
-      `;
-  const jsCode = await transpile(wrappedCode);
-
-  return new vm.Script(jsCode);
+      ? `(async () => { return (${code}); })()`
+      : `(async () => { ${statementCode} })()`;
+  return new vm.Script(await transpile(wrappedCode));
 }
 
-export async function executeQuery(
-  session: Session,
-  code: string,
-  timeout = DEFAULT_QUERY_TIMEOUT,
-  queryOptions?: Record<string, string>,
-): Promise<any> {
-  const adapterContext = session.adapter.buildQueryContext(session.data, queryOptions);
-
+export async function executeQuery(session: DatasetSession, code: string, timeout = DEFAULT_QUERY_TIMEOUT) {
   let script: vm.Script;
   try {
     script = await buildQueryScript(code, "expression");
@@ -237,45 +167,42 @@ export async function executeQuery(
     }
   }
 
+  const abort = new AbortController();
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timer = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
+      abort.abort();
       reject(new QueryTimeoutError(timeout));
     }, timeout);
     timeoutId.unref?.();
   });
 
   try {
+    const ds = session.createQueryApi({ signal: abort.signal });
     const context = {
-      ...adapterContext,
-      Buffer,
+      ds,
       console,
       performance,
+      Buffer,
+      URL,
+      TextEncoder,
+      TextDecoder,
       setTimeout,
       clearTimeout,
       setInterval,
       clearInterval,
-      URL,
-      TextDecoder,
-      TextEncoder,
     };
     let result: unknown;
     try {
       result = script.runInNewContext(context, { timeout });
     } catch (error) {
-      if (
-        error instanceof Error &&
-        /Script execution timed out|timed out after/i.test(error.message)
-      ) {
+      if (error instanceof Error && /Script execution timed out|timed out after/i.test(error.message)) {
         throw new QueryTimeoutError(timeout);
       }
       throw error;
     }
-
     return await Promise.race([Promise.resolve(result), timer]);
   } finally {
-    if (timeoutId !== undefined) {
-      clearTimeout(timeoutId);
-    }
+    if (timeoutId) clearTimeout(timeoutId);
   }
 }

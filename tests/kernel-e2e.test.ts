@@ -1,0 +1,368 @@
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
+import { afterEach, describe, expect, it } from "vitest";
+import { handleRequest } from "../src/server/router";
+import { sessionManager } from "../src/server/sessions";
+
+type TracePayload = {
+  metadata?: Record<string, any>;
+  traceEvents: Record<string, any>[];
+};
+
+const tempDirs: string[] = [];
+
+function createTempDir() {
+  const dir = mkdtempSync(join(tmpdir(), "dataset-kernel-"));
+  tempDirs.push(dir);
+  return dir;
+}
+
+function createTraceFile(trace: TracePayload) {
+  const dir = createTempDir();
+  const filePath = join(dir, "trace.json");
+  writeFileSync(filePath, JSON.stringify(trace));
+  return filePath;
+}
+
+function sampleTrace(): TracePayload {
+  return {
+    metadata: {
+      source: "unit-test",
+      startTime: "2026-03-24T00:00:00.000Z",
+      sourceMaps: [
+        {
+          url: "http://example.com/app.js",
+          sourceMapUrl: "http://example.com/app.js.map",
+          sourceMap: {
+            version: 3,
+            file: "app.js",
+            names: [],
+            sources: ["src/app.ts"],
+            sourcesContent: ['export const value = 42;'],
+            mappings: "",
+          },
+        },
+      ],
+    },
+    traceEvents: [
+      { cat: "__metadata", name: "process_name", ph: "M", pid: 1, tid: 0, ts: 0, args: { name: "Renderer" } },
+      { cat: "__metadata", name: "thread_name", ph: "M", pid: 1, tid: 1, ts: 0, args: { name: "CrRendererMain" } },
+      {
+        cat: "disabled-by-default-devtools.screenshot",
+        name: "Screenshot",
+        ph: "I",
+        pid: 1,
+        tid: 1,
+        ts: 1000,
+        args: { snapshot: Buffer.from("fake-jpeg").toString("base64"), frame_sequence: 7 },
+      },
+      {
+        cat: "disabled-by-default-devtools.v8-source-rundown-sources",
+        name: "ScriptCatchup",
+        ph: "X",
+        pid: 1,
+        tid: 1,
+        ts: 1010,
+        dur: 5,
+        args: {
+          data: {
+            scriptId: 10,
+            url: "http://example.com/app.js",
+            sourceText: "console.log('hello from inline source')",
+          },
+        },
+      },
+      {
+        cat: "devtools.timeline",
+        name: "ResourceSendRequest",
+        ph: "I",
+        pid: 1,
+        tid: 1,
+        ts: 1020,
+        args: { data: { requestId: "req-1", url: "http://example.com/data.json", requestMethod: "GET" } },
+      },
+      {
+        cat: "devtools.timeline",
+        name: "ResourceReceiveResponse",
+        ph: "I",
+        pid: 1,
+        tid: 1,
+        ts: 1030,
+        args: {
+          data: {
+            requestId: "req-1",
+            statusCode: 200,
+            mimeType: "application/json",
+            protocol: "h2",
+            fromCache: false,
+            headers: [{ name: "content-type", value: "application/json" }],
+            timing: { receiveHeadersEnd: 5.2 },
+          },
+        },
+      },
+      {
+        cat: "devtools.timeline",
+        name: "ResourceFinish",
+        ph: "I",
+        pid: 1,
+        tid: 1,
+        ts: 1090,
+        args: { data: { requestId: "req-1" } },
+      },
+      {
+        cat: "devtools.timeline",
+        name: "EventTiming",
+        ph: "b",
+        pid: 1,
+        tid: 1,
+        ts: 2000,
+        args: {
+          data: {
+            type: "pointerup",
+            interactionId: 4758,
+            duration: 232.042,
+            processingStart: 1,
+            processingEnd: 2,
+            commitFinishTime: 3,
+            timeStamp: 4,
+          },
+        },
+      },
+      {
+        cat: "devtools.timeline",
+        name: "EventTiming",
+        ph: "b",
+        pid: 1,
+        tid: 1,
+        ts: 2000,
+        args: {
+          data: {
+            type: "click",
+            interactionId: 4758,
+            duration: 232.042,
+            processingStart: 1,
+            processingEnd: 2,
+            commitFinishTime: 3,
+            timeStamp: 4,
+          },
+        },
+      },
+      {
+        cat: "devtools.timeline",
+        name: "EventDispatch",
+        ph: "X",
+        pid: 1,
+        tid: 1,
+        ts: 2010,
+        dur: 201805,
+        args: { data: { type: "click" } },
+      },
+      {
+        cat: "blink.user_timing",
+        name: "ChatBlock",
+        ph: "b",
+        pid: 1,
+        tid: 1,
+        ts: 2050,
+        args: {
+          traceId: 123,
+          detail: JSON.stringify({
+            devtools: {
+              track: "Components",
+              tooltipText: "ChatBlock",
+              properties: [["context", "Referentially unequal but deeply equal"]],
+            },
+          }),
+        },
+      },
+      {
+        cat: "devtools.timeline",
+        name: "UserTiming::Measure",
+        ph: "X",
+        pid: 1,
+        tid: 1,
+        ts: 2060,
+        dur: 2000,
+        args: { sampleTraceId: 123 },
+      },
+      {
+        cat: "blink.user_timing",
+        name: "VirtualItem",
+        ph: "b",
+        pid: 1,
+        tid: 1,
+        ts: 2070,
+        args: {
+          traceId: 124,
+          detail: JSON.stringify({
+            devtools: {
+              track: "Components",
+              tooltipText: "VirtualItem",
+              properties: [["children", "changed"]],
+            },
+          }),
+        },
+      },
+      {
+        cat: "devtools.timeline",
+        name: "UserTiming::Measure",
+        ph: "X",
+        pid: 1,
+        tid: 1,
+        ts: 2080,
+        dur: 3000,
+        args: { sampleTraceId: 124 },
+      },
+      {
+        cat: "benchmark",
+        name: "PipelineReporter",
+        ph: "b",
+        pid: 1,
+        tid: 1,
+        ts: 2100,
+        args: { frame_reporter: { state: "STATE_DROPPED" } },
+      },
+    ],
+  };
+}
+
+async function parseJson(response: Response) {
+  return (await response.json()) as Record<string, any>;
+}
+
+async function loadSession(file: string, alias?: string) {
+  const response = await handleRequest(
+    new Request("http://trace-server/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file, alias }),
+    }),
+  );
+  expect(response.status).toBe(201);
+  return (await parseJson(response)).sessionId as string;
+}
+
+afterEach(() => {
+  sessionManager.clear();
+  while (tempDirs.length > 0) {
+    const dir = tempDirs.pop();
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+describe("dataset kernel e2e", () => {
+  it("loads a devtools dataset and exposes schema/caps/tables/reports", async () => {
+    const file = createTraceFile(sampleTrace());
+    const sessionId = await loadSession(file, "trace");
+
+    const capsResponse = await handleRequest(new Request(`http://trace-server/sessions/${sessionId}/caps`));
+    expect(capsResponse.status).toBe(200);
+    const capsPayload = await parseJson(capsResponse);
+    expect(capsPayload.caps.screenshots).toBe(true);
+    expect(capsPayload.caps.sourceMaps).toBe(true);
+    expect(capsPayload.caps.inlineScriptSource).toBe(true);
+    expect(capsPayload.caps.eventTiming).toBe(true);
+
+    const schemaResponse = await handleRequest(new Request(`http://trace-server/sessions/${sessionId}/schema`));
+    expect(schemaResponse.status).toBe(200);
+    const schemaPayload = await parseJson(schemaResponse);
+    expect(schemaPayload.kind).toBe("devtools");
+    expect(schemaPayload.tables.some((table: any) => table.name === "devtools.dims.interactions")).toBe(true);
+    expect(schemaPayload.reports.some((report: any) => report.name === "devtools.interaction")).toBe(true);
+    expect(schemaPayload.collections.some((collection: any) => collection.id === "devtools.screenshots")).toBe(true);
+  });
+
+  it("supports generic table queries and generic reports", async () => {
+    const file = createTraceFile(sampleTrace());
+    const sessionId = await loadSession(file);
+
+    const tableResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/tables/${encodeURIComponent("devtools.dims.interactions")}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limit: 5 }),
+      }),
+    );
+    expect(tableResponse.status).toBe(200);
+    const tablePayload = await parseJson(tableResponse);
+    expect(tablePayload.table).toBe("devtools.dims.interactions");
+    expect(tablePayload.rows).toHaveLength(1);
+    expect(tablePayload.rows[0].interactionId).toBe("4758");
+    expect(tablePayload.rows[0].type).toBe("click");
+
+    const reportResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/reports/${encodeURIComponent("devtools.interaction")}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: "4758" }),
+      }),
+    );
+    expect(reportResponse.status).toBe(200);
+    const reportPayload = await parseJson(reportResponse);
+    expect(reportPayload.result.interaction.interactionId).toBe("4758");
+    expect(reportPayload.result.topComponents[0].componentName).toBe("ChatBlock");
+    expect(reportPayload.result.droppedFrames).toBe(1);
+  });
+
+  it("supports querying through the ds runtime", async () => {
+    const file = createTraceFile(sampleTrace());
+    const sessionId = await loadSession(file);
+
+    const queryResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: `
+const summary = await ds.reports.run('devtools.summary');
+const interactions = await (await ds.tables.get('devtools.dims.interactions')).rows();
+return { kind: await ds.schema.kind(), totalEvents: summary.totalEvents, interactionCount: interactions.length };
+`,
+        }),
+      }),
+    );
+    expect(queryResponse.status).toBe(200);
+    const queryPayload = await parseJson(queryResponse);
+    expect(JSON.parse(queryPayload.result)).toEqual({ kind: "devtools", totalEvents: 15, interactionCount: 1 });
+  });
+
+  it("lists artifacts and materializes/exports files", async () => {
+    const file = createTraceFile(sampleTrace());
+    const sessionId = await loadSession(file);
+
+    const artifactsResponse = await handleRequest(new Request(`http://trace-server/sessions/${sessionId}/artifacts`));
+    expect(artifactsResponse.status).toBe(200);
+    const artifactsPayload = await parseJson(artifactsResponse);
+    const artifactIds = artifactsPayload.artifacts.map((artifact: any) => artifact.id);
+    expect(artifactIds).toContain("artifact:devtools:screenshot:0");
+    expect(artifactIds).toContain("artifact:devtools:script:10");
+    expect(artifactIds).toContain("artifact:code:sourcemap:0");
+    expect(artifactIds).toContain("artifact:code:source:0:0");
+
+    const materializeResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/artifacts/${encodeURIComponent("artifact:devtools:screenshot:0")}/materialize`, {
+        method: "POST",
+      }),
+    );
+    expect(materializeResponse.status).toBe(200);
+    const materializePayload = await parseJson(materializeResponse);
+    expect(existsSync(materializePayload.path)).toBe(true);
+    expect(readFileSync(materializePayload.path).toString("utf8")).toContain("fake-jpeg");
+
+    const exportResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/files/collections/${encodeURIComponent("code.sources")}/export`, {
+        method: "POST",
+      }),
+    );
+    expect(exportResponse.status).toBe(200);
+    const exportPayload = await parseJson(exportResponse);
+    expect(existsSync(exportPayload.path)).toBe(true);
+    expect(existsSync(exportPayload.manifestPath)).toBe(true);
+    const manifest = JSON.parse(readFileSync(exportPayload.manifestPath, "utf8"));
+    expect(manifest.collectionId).toBe("code.sources");
+    expect(exportPayload.fileCount).toBe(1);
+    const exportedSourcePath = join(exportPayload.path, manifest.items[0].relativePath);
+    expect(readFileSync(exportedSourcePath, "utf8")).toContain("export const value = 42");
+  });
+});

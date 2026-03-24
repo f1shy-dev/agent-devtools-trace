@@ -1,59 +1,28 @@
-import type { TraceAdapter } from "./adapter";
-
-export interface TraceEvent {
-  cat: string;
-  name: string;
-  ph: string;
-  pid: number;
-  tid: number;
-  ts: number;
-  dur?: number;
-  tdur?: number;
-  tts?: number;
-  args?: Record<string, any>;
-  id?: string;
-  s?: string;
-}
-
-export interface TraceMetadata {
-  enhancedTraceVersion?: number;
-  source?: string;
-  startTime?: string;
-  dataOrigin?: string;
-  hostDPR?: number;
-  sourceMaps?: any[];
-  modifications?: any;
-  [key: string]: any;
-}
-
-export interface ParsedTrace {
-  metadata: TraceMetadata;
-  traceEvents: TraceEvent[];
-}
-
-export interface TraceIndexes {
-  byCategory: Map<string, TraceEvent[]>;
-  byName: Map<string, TraceEvent[]>;
-  byThread: Map<string, TraceEvent[]>;
-  byPhase: Map<string, TraceEvent[]>;
-}
-
-export interface Session {
-  id: string;
-  file: string;
-  alias?: string;
-  type: string;
-  data: unknown;
-  adapter: TraceAdapter;
-  loadedAt: Date;
-  fileSizeBytes: number;
-  memorySizeMB: number;
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
+export interface JsonObject {
+  [key: string]: JsonValue;
 }
 
 export interface ServerInfo {
   pid: number;
   socketPath: string;
   startedAt: string;
+}
+
+export interface DatasetManifest {
+  id: string;
+  kind: string;
+  driverId: string;
+  source: string;
+  loadedAt: string;
+  fileSizeBytes: number;
+  itemCount?: number;
+}
+
+export interface SessionInfo extends DatasetManifest {
+  alias?: string;
+  memorySizeMB: number;
 }
 
 export interface HealthResponse {
@@ -66,21 +35,11 @@ export interface HealthResponse {
 
 export interface LoadedSessionResponse {
   sessionId: string;
-  file: string;
   alias?: string;
-  type: string;
-  events: number;
-  memorySizeMB: number;
-}
-
-export interface SessionInfo {
-  id: string;
-  file: string;
-  alias?: string;
-  type: string;
-  events: number;
-  loadedAt: string;
+  kind: string;
+  source: string;
   fileSizeBytes: number;
+  itemCount?: number;
   memorySizeMB: number;
 }
 
@@ -90,166 +49,76 @@ export interface QueryResponse {
   truncated: boolean;
 }
 
-export interface CategoryInfo {
-  category: string;
-  count: number;
-  percentage: number;
-  phases: Record<string, number>;
-  topNames: string[];
+export interface CapabilityMap {
+  [key: string]: string | number | boolean | null;
 }
 
-export interface ThreadInfo {
-  pid: number;
-  tid: number;
-  threadKey: string;
-  name?: string;
-  processName?: string;
-  eventCount: number;
-  categories: string[];
-}
-
-export interface NetworkRequest {
-  requestId: string;
-  url: string;
-  method: string;
-  resourceType?: string;
-  priority?: string;
-  startTime: number;
-  endTime?: number;
-  duration?: number;
-  statusCode?: number;
-  mimeType?: string;
-  encodedDataLength?: number;
-  decodedBodyLength?: number;
-  fromCache?: boolean;
-  initiator?: { type: string; url?: string };
-}
-
-export interface LongTask {
+export interface TableColumn {
   name: string;
-  category: string;
-  durationMs: number;
-  startTimeMs: number;
-  pid: number;
-  tid: number;
-  threadName?: string;
+  type: string;
+  description?: string;
+  unit?: string;
 }
 
-export interface ScreenshotInfo {
-  index: number;
-  timestamp: number;
-  timestampMs: number;
-  sizeBytes: number;
-  base64Length: number;
+export interface TableInfo {
+  name: string;
+  description: string;
+  columns: TableColumn[];
 }
 
-export interface SummaryResponse {
-  file: string;
-  totalEvents: number;
-  durationMs: number;
-  startTime?: string;
-  categories: number;
-  threads: number;
-  processes: number;
-  phases: Record<string, number>;
-  topCategories: { category: string; count: number; pct: number }[];
-  topEventNames: { name: string; count: number }[];
-  hasScreenshots: boolean;
-  screenshotCount: number;
-  hasNetworkEvents: boolean;
-  networkRequestCount: number;
-  hasSourceMaps: boolean;
-  sourceMapCount: number;
-  memorySizeMB: number;
+export interface ReportInfo {
+  name: string;
+  description: string;
 }
 
-export interface NextAnalyzeSummaryResponse {
-  file: string;
-  type: "next-analyze";
-  totalModules: number;
-  totalRoutes: number;
-  routes: string[];
-  totalSources: number;
-  totalOutputFiles: number;
-  totalChunkParts: number;
-  totalSize: number;
-  totalCompressedSize: number;
-  topSourcesBySize: Array<{ path: string; size: number; compressedSize: number }>;
-  memorySizeMB: number;
+export interface ArtifactRef {
+  id: string;
+  kind: "text" | "json" | "image" | "binary";
+  mediaType: string;
+  sizeBytes?: number;
+  filenameHint?: string;
+  hash?: string;
+  metadata?: Record<string, unknown>;
 }
 
-export interface AnalyzeRoutesResponse {
-  routes: Array<{
-    route: string;
-    sourceCount: number;
-    outputFileCount: number;
-    chunkPartCount: number;
-    totalSize: number;
-    totalCompressedSize: number;
-  }>;
+export interface FileCollectionInfo {
+  id: string;
+  description: string;
 }
 
-export interface AnalyzeModulesResponse {
-  route: string;
-  totalModules: number;
-  modules: Array<{
-    index: number;
-    ident: string;
-    path: string;
-    dependencyCount: number;
-    dependentCount: number;
-    asyncDependencyCount: number;
-    asyncDependentCount: number;
-  }>;
+export interface SchemaResponse {
+  kind: string;
+  namespaces: string[];
+  tables: TableInfo[];
+  reports: ReportInfo[];
+  collections: FileCollectionInfo[];
 }
 
-export interface AnalyzeSizesResponse {
-  route: string;
-  byOutputType: Array<{
-    type: string;
-    count: number;
-    size: number;
-    compressedSize: number;
-  }>;
-  byEnvironment: Array<{
-    env: string;
-    count: number;
-    size: number;
-    compressedSize: number;
-  }>;
-  topOutputFiles: Array<{
-    filename: string;
-    size: number;
-    compressedSize: number;
-    chunkParts: number;
-  }>;
+export interface MaterializedFile {
+  kind: "file";
+  path: string;
+  artifactId: string;
+  bytes?: number;
+  leaseId: string;
 }
 
-export interface CategoriesResponse {
-  categories: CategoryInfo[];
+export interface MaterializedDirectory {
+  kind: "directory";
+  path: string;
+  manifestPath: string;
+  collectionId: string;
+  fileCount: number;
+  leaseId: string;
 }
 
-export interface ThreadsResponse {
-  threads: ThreadInfo[];
+export interface TableRowsResponse {
+  table: string;
+  rows: unknown[];
 }
 
-export interface NetworkResponse {
-  requests: NetworkRequest[];
-}
-
-export interface LongTasksResponse {
-  thresholdMs: number;
-  tasks: LongTask[];
-}
-
-export interface ScreenshotsResponse {
-  screenshots: ScreenshotInfo[];
-}
-
-export interface ExtractScreenshotsResponse {
-  dir: string;
-  count: number;
-  files: string[];
+export interface ReportResponse {
+  report: string;
+  result: unknown;
 }
 
 export interface StopServerResponse {

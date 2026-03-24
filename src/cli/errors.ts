@@ -1,15 +1,11 @@
 export function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return String(error);
+  return error instanceof Error ? error.message : String(error);
 }
 
 export function isConnectionError(error: unknown): boolean {
   const message = getErrorMessage(error);
-  return ["connect", "ECONNREFUSED", "ENOENT", "unix", "socket", "Server failed to start"].some(
-    (part) => message.includes(part),
+  return ["connect", "ECONNREFUSED", "ENOENT", "socket", "Server failed to start"].some((part) =>
+    message.includes(part),
   );
 }
 
@@ -23,6 +19,5 @@ export function handleCommandError(error: unknown): never {
   if (isConnectionError(error)) {
     fail("Server is not running. Use 'trace-server load <file>' to start.");
   }
-
   fail(`Error: ${getErrorMessage(error)}`);
 }

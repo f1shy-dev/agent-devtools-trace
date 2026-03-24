@@ -1,23 +1,27 @@
+import { statSync } from "fs";
 import { resolve } from "path";
-import type { TraceAdapter } from "../shared/adapter";
-import { DevToolsAdapter } from "../adapters/devtools";
-import { NextAnalyzeAdapter } from "../adapters/next-analyze";
+import { DevtoolsDriver } from "../drivers/devtools.js";
+import { RawJsonDriver } from "../drivers/raw-json.js";
+import type { DatasetSession, SourceDriver, SourceProbe } from "../core/types.js";
 
-const adapters: TraceAdapter[] = [new NextAnalyzeAdapter(), new DevToolsAdapter()];
+const drivers: SourceDriver[] = [new DevtoolsDriver(), new RawJsonDriver()];
 
-export interface LoadResult {
-  adapter: TraceAdapter;
-  data: unknown;
+function buildProbe(path: string): SourceProbe {
+  const stat = statSync(path);
+  return {
+    path,
+    isDirectory: stat.isDirectory(),
+    sizeBytes: stat.size,
+  };
 }
 
-export async function loadTrace(filePath: string): Promise<LoadResult> {
+export async function loadSource(filePath: string): Promise<DatasetSession> {
   const resolved = resolve(filePath);
-  for (const adapter of adapters) {
-    if (adapter.canLoad(resolved)) {
-      const data = await adapter.load(resolved);
-      return { adapter, data };
-    }
+  const probe = buildProbe(resolved);
+  for (const driver of drivers) {
+    const detection = await driver.detect(probe);
+    if (!detection) continue;
+    return driver.open(resolved, detection);
   }
-
-  throw new Error(`No loader found for: ${filePath}`);
+  throw new Error(`No source driver found for: ${filePath}`);
 }
