@@ -499,6 +499,251 @@ function buildThreadRows(trace: ParsedTrace) {
   }).sort((a, b) => b.eventCount - a.eventCount || a.threadKey.localeCompare(b.threadKey));
 }
 
+function buildLayoutShifts(trace: ParsedTrace) {
+  return trace.traceEvents
+    .map((event, index) => ({ event, index }))
+    .filter(({ event }) => event.name === "LayoutShift" && isRecord(event.args?.data))
+    .map(({ event, index }) => {
+      const data = event.args!.data as Record<string, any>;
+      const impactedNodes = Array.isArray(data.impacted_nodes) ? data.impacted_nodes : [];
+      return {
+        layoutShiftId: `layout-shift:${index}`,
+        eventId: `evt:${index}`,
+        tsUs: event.ts,
+        score: typeof data.score === "number" ? data.score : 0,
+        cumulativeScore: typeof data.cumulative_score === "number" ? data.cumulative_score : 0,
+        hadRecentInput: Boolean(data.had_recent_input),
+        impactedNodeCount: impactedNodes.length,
+        rawEventIds: [`evt:${index}`],
+      };
+    });
+}
+
+function buildSoftNavigations(trace: ParsedTrace) {
+  const groups = new Map<string, { startTsUs: number; endTsUs: number; rawEventIds: string[]; eventTypes: Set<string>; domModifications: number }>();
+  trace.traceEvents.forEach((event, index) => {
+    if (!event.name.startsWith("SoftNavigation")) return;
+    const contextId = canonicalId((event.args as any)?.context?.softNavContextId) ?? `soft-nav:${index}`;
+    if (!groups.has(contextId)) {
+      groups.set(contextId, {
+        startTsUs: event.ts,
+        endTsUs: event.ts,
+        rawEventIds: [],
+        eventTypes: new Set(),
+        domModifications: 0,
+      });
+    }
+    const row = groups.get(contextId)!;
+    row.startTsUs = Math.min(row.startTsUs, event.ts);
+    row.endTsUs = Math.max(row.endTsUs, event.ts + (event.dur ?? 0));
+    row.rawEventIds.push(`evt:${index}`);
+    row.eventTypes.add(event.name);
+    const modifications = (event.args as any)?.context?.domModifications;
+    if (typeof modifications === "number") {
+      row.domModifications = Math.max(row.domModifications, modifications);
+    }
+  });
+  return [...groups.entries()].map(([softNavigationId, row]) => ({
+    softNavigationId,
+    startTsUs: row.startTsUs,
+    endTsUs: row.endTsUs,
+    durationMs: (row.endTsUs - row.startTsUs) / 1000,
+    eventTypes: [...row.eventTypes].sort(),
+    eventCount: row.rawEventIds.length,
+    domModifications: row.domModifications,
+    rawEventIds: row.rawEventIds,
+  })).sort((a, b) => a.startTsUs - b.startTsUs);
+}
+
+function buildFramePipeline(trace: ParsedTrace) {
+  const screenshotsByFrameSeq = new Map(
+    buildScreenshots(trace)
+      .filter((row) => row.frameSeqId)
+      .map((row) => [row.frameSeqId, row.artifactId] as const),
+  );
+  return trace.traceEvents
+    .map((event, index) => ({ event, index }))
+    .filter(({ event }) => event.name === "PipelineReporter" && isRecord((event.args as any)?.frame_reporter))
+    .map(({ event, index }) => {
+      const frameReporter = (event.args as any).frame_reporter as Record<string, any>;
+      const frameSequence = canonicalId(frameReporter.frame_sequence);
+      return {
+        frameReportId: `frame-report:${index}`,
+        eventId: `evt:${index}`,
+        tsUs: event.ts,
+        frameSequence,
+        state: getNestedString(frameReporter.state) ?? "unknown",
+        affectsSmoothness: Boolean(frameReporter.affects_smoothness),
+        hasHighLatency: Boolean(frameReporter.has_high_latency),
+        hasMainAnimation: Boolean(frameReporter.has_main_animation),
+        scrollState: getNestedString(frameReporter.scroll_state),
+        screenshotArtifactId: frameSequence ? screenshotsByFrameSeq.get(frameSequence) : undefined,
+        rawEventIds: [`evt:${index}`],
+      };
+    });
+}
+
+function buildMainThreadTasks(trace: ParsedTrace) {
+  const { threadNames } = buildThreadMetadata(trace.traceEvents);
+  const rendererMainThreads = new Set(
+    [...threadNames.entries()]
+      .filter(([, threadName]) => /renderer.?main/i.test(threadName) || threadName === "CrRendererMain")
+      .map(([threadKey]) => threadKey),
+  );
+  const facts = buildFacts(trace);
+  return trace.traceEvents
+    .map((event, index) => ({ event, index }))
+    .filter(({ event }) => event.ph === "X" && event.dur && event.dur > 0)
+    .filter(({ event }) => rendererMainThreads.has(getThreadKey(event.pid, event.tid)))
+    .filter(({ event }) => event.name === "RunTask" || event.name === "ThreadControllerImpl::RunTask")
+    .map(({ event, index }) => {
+      const start = event.ts;
+      const end = event.ts + (event.dur ?? 0);
+      const children = facts.filter(
+        (fact) =>
+          fact.threadKey === getThreadKey(event.pid, event.tid) &&
+          fact.eventId !== `evt:${index}` &&
+          fact.tsUs >= start &&
+          fact.endUs <= end,
+      );
+      const countByName = new Map<string, number>();
+      for (const child of children) {
+        countByName.set(child.name, (countByName.get(child.name) ?? 0) + 1);
+      }
+      return {
+        taskId: `task:${index}`,
+        eventId: `evt:${index}`,
+        threadKey: getThreadKey(event.pid, event.tid),
+        tsUs: start,
+        durationMs: (event.dur ?? 0) / 1000,
+        childEventCount: children.length,
+        functionCalls: countByName.get("FunctionCall") ?? 0,
+        layouts: countByName.get("Layout") ?? 0,
+        paints: countByName.get("Paint") ?? 0,
+        renderMeasures: countByName.get("UserTiming::Measure") ?? 0,
+        rawEventIds: [`evt:${index}`, ...children.map((child) => child.eventId)],
+      };
+    })
+    .sort((a, b) => b.durationMs - a.durationMs || a.tsUs - b.tsUs);
+}
+
+function buildCodeHotspots(trace: ParsedTrace) {
+  const scripts = new Map(buildScripts(trace).map((row) => [row.scriptId, row] as const));
+  const groups = new Map<string, any>();
+  trace.traceEvents.forEach((event, index) => {
+    if ((event.name !== "FunctionCall" && event.name !== "EvaluateScript") || event.ph !== "X") return;
+    const data = isRecord(event.args?.data) ? (event.args!.data as Record<string, any>) : undefined;
+    const url = getNestedString(data?.url) ?? getNestedString((event.args as any)?.url) ?? "(unknown)";
+    const functionName = getNestedString(data?.functionName) ?? event.name;
+    const scriptId = canonicalId(data?.scriptId);
+    const key = `${scriptId ?? "?"}|${url}|${functionName}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        hotspotId: `hotspot:${groups.size}`,
+        scriptId,
+        url,
+        functionName,
+        totalDurationMs: 0,
+        maxDurationMs: 0,
+        count: 0,
+        sourceMapId: scriptId ? scripts.get(scriptId)?.sourceMapId : undefined,
+        rawEventIds: [] as string[],
+      });
+    }
+    const row = groups.get(key)!;
+    const durationMs = (event.dur ?? 0) / 1000;
+    row.totalDurationMs += durationMs;
+    row.maxDurationMs = Math.max(row.maxDurationMs, durationMs);
+    row.count += 1;
+    row.rawEventIds.push(`evt:${index}`);
+  });
+  return [...groups.values()].sort((a, b) => b.totalDurationMs - a.totalDurationMs || b.count - a.count);
+}
+
+function buildCpuHotspots(trace: ParsedTrace) {
+  const nodes = new Map<number, { callFrame?: Record<string, any>; parent?: number }>();
+  const counts = new Map<number, { sampleCount: number; rawEventIds: string[] }>();
+  trace.traceEvents.forEach((event, index) => {
+    if (event.name !== "ProfileChunk") return;
+    const data = (event.args as any)?.data;
+    const cpuProfile = isRecord(data?.cpuProfile) ? (data.cpuProfile as Record<string, any>) : undefined;
+    const profileNodes = Array.isArray(cpuProfile?.nodes) ? cpuProfile.nodes : [];
+    for (const node of profileNodes) {
+      if (!isRecord(node) || typeof node.id !== "number") continue;
+      nodes.set(node.id, {
+        callFrame: isRecord(node.callFrame) ? (node.callFrame as Record<string, any>) : undefined,
+        parent: typeof node.parent === "number" ? node.parent : undefined,
+      });
+    }
+    const samples = Array.isArray(cpuProfile?.samples) ? cpuProfile.samples : [];
+    for (const sample of samples) {
+      if (typeof sample !== "number") continue;
+      if (!counts.has(sample)) {
+        counts.set(sample, { sampleCount: 0, rawEventIds: [] });
+      }
+      const row = counts.get(sample)!;
+      row.sampleCount += 1;
+      row.rawEventIds.push(`evt:${index}`);
+    }
+  });
+  return [...counts.entries()]
+    .map(([nodeId, count]) => {
+      const node = nodes.get(nodeId);
+      const callFrame = node?.callFrame ?? {};
+      return {
+        cpuHotspotId: `cpu:${nodeId}`,
+        nodeId: String(nodeId),
+        functionName: getNestedString(callFrame.functionName) ?? "(anonymous)",
+        url: getNestedString(callFrame.url),
+        scriptId: canonicalId(callFrame.scriptId),
+        lineNumber: typeof callFrame.lineNumber === "number" ? callFrame.lineNumber : undefined,
+        columnNumber: typeof callFrame.columnNumber === "number" ? callFrame.columnNumber : undefined,
+        codeType: getNestedString(callFrame.codeType),
+        sampleCount: count.sampleCount,
+        rawEventIds: count.rawEventIds,
+      };
+    })
+    .sort((a, b) => b.sampleCount - a.sampleCount || a.functionName.localeCompare(b.functionName));
+}
+
+function buildInteractionWindows(trace: ParsedTrace) {
+  const interactions = buildInteractions(trace);
+  const renders = buildRenderMeasures(trace);
+  const requests = buildRequests(trace);
+  const screenshots = buildScreenshots(trace);
+  const framePipeline = buildFramePipeline(trace);
+  const layoutShifts = buildLayoutShifts(trace);
+  const softNavigations = buildSoftNavigations(trace);
+  return interactions.map((interaction) => ({
+    interactionId: interaction.interactionId,
+    type: interaction.type,
+    durationMs: interaction.durationMs,
+    renderCount: renders.filter((row) => row.tsUs >= interaction.startTsUs && row.tsUs <= interaction.endTsUs).length,
+    requestCount: requests.filter((row) => row.startTimeUs >= interaction.startTsUs && row.startTimeUs <= interaction.endTsUs).length,
+    screenshotCount: screenshots.filter((row) => row.tsUs >= interaction.startTsUs && row.tsUs <= interaction.endTsUs).length,
+    droppedFrameCount: framePipeline.filter((row) => row.tsUs >= interaction.startTsUs && row.tsUs <= interaction.endTsUs && row.state === "STATE_DROPPED").length,
+    layoutShiftCount: layoutShifts.filter((row) => row.tsUs >= interaction.startTsUs && row.tsUs <= interaction.endTsUs).length,
+    softNavigationCount: softNavigations.filter((row) => row.startTsUs <= interaction.endTsUs && row.endTsUs >= interaction.startTsUs).length,
+    rawEventIds: interaction.rawEventIds,
+  }));
+}
+
+function buildVisualChanges(trace: ParsedTrace) {
+  const rows: any[] = [];
+  buildScreenshots(trace).forEach((row) => {
+    rows.push({ changeId: `visual:screenshot:${row.screenshotId}`, kind: "screenshot", tsUs: row.tsUs, artifactId: row.artifactId, rawEventIds: [row.eventId] });
+  });
+  buildLayoutShifts(trace).forEach((row) => {
+    rows.push({ changeId: row.layoutShiftId, kind: "layout-shift", tsUs: row.tsUs, score: row.score, rawEventIds: row.rawEventIds });
+  });
+  trace.traceEvents.forEach((event, index) => {
+    if (["Paint", "PrePaint", "AnimationFrame::Presentation"].includes(event.name)) {
+      rows.push({ changeId: `visual:${event.name}:${index}`, kind: event.name, tsUs: event.ts, rawEventIds: [`evt:${index}`] });
+    }
+  });
+  return rows.sort((a, b) => a.tsUs - b.tsUs);
+}
+
 function buildSummary(trace: ParsedTrace) {
   const facts = buildFacts(trace);
   const indexes = buildIndexes(trace.traceEvents);
@@ -514,7 +759,53 @@ function buildSummary(trace: ParsedTrace) {
     interactions: buildInteractions(trace).length,
     scripts: buildScripts(trace).length,
     sourceMaps: buildSourceMaps(trace).length,
+    sources: buildSources(trace).length,
+    layoutShifts: buildLayoutShifts(trace).length,
+    softNavigations: buildSoftNavigations(trace).length,
+    frameReports: buildFramePipeline(trace).length,
+    codeHotspots: buildCodeHotspots(trace).length,
+    cpuHotspots: buildCpuHotspots(trace).length,
     facts: facts.length,
+  };
+}
+
+function buildHotspotsReport(trace: ParsedTrace) {
+  return {
+    codeHotspots: buildCodeHotspots(trace).slice(0, 50),
+    cpuHotspots: buildCpuHotspots(trace).slice(0, 50),
+  };
+}
+
+function buildScriptReport(trace: ParsedTrace, args?: Record<string, unknown>) {
+  const scripts = buildScripts(trace);
+  const scriptId = typeof args?.scriptId === "string" ? args.scriptId : undefined;
+  const url = typeof args?.url === "string" ? args.url : undefined;
+  const script = scriptId
+    ? scripts.find((row) => row.scriptId === scriptId)
+    : url
+      ? scripts.find((row) => row.url === url)
+      : scripts[0];
+  if (!script) {
+    return { script: null, sourceMap: null, sources: [], codeHotspots: [], cpuHotspots: [] };
+  }
+  const codeHotspots = buildCodeHotspots(trace).filter(
+    (row) => row.scriptId === script.scriptId || (script.url && row.url === script.url),
+  );
+  const cpuHotspots = buildCpuHotspots(trace).filter(
+    (row) => row.scriptId === script.scriptId || (script.url && row.url === script.url),
+  );
+  const sourceMap = script.sourceMapId
+    ? buildSourceMaps(trace).find((row) => row.sourceMapId === script.sourceMapId) ?? null
+    : null;
+  const sources = sourceMap
+    ? buildSources(trace).filter((row) => row.sourceMapId === sourceMap.sourceMapId)
+    : [];
+  return {
+    script,
+    sourceMap,
+    sources,
+    codeHotspots,
+    cpuHotspots,
   };
 }
 
@@ -524,7 +815,18 @@ function buildInteractionReport(trace: ParsedTrace, interactionId?: string) {
     ? interactions.find((row) => row.interactionId === interactionId)
     : interactions[0];
   if (!target) {
-    return { interaction: null, renders: [], topComponents: [], eventDispatches: [], droppedFrames: 0 };
+    return {
+      interaction: null,
+      renders: [],
+      topComponents: [],
+      eventDispatches: [],
+      droppedFrames: 0,
+      requests: [],
+      layoutShifts: [],
+      softNavigations: [],
+      screenshots: [],
+      codeHotspots: [],
+    };
   }
   const renderMeasures = buildRenderMeasures(trace).filter(
     (row) => row.tsUs >= target.startTsUs && row.tsUs <= target.endTsUs,
@@ -546,11 +848,29 @@ function buildInteractionReport(trace: ParsedTrace, interactionId?: string) {
       tsUs: event.ts,
       durMs: (event.dur ?? 0) / 1000,
     }));
-  const droppedFrames = trace.traceEvents.filter((event) => {
-    if (event.name !== "PipelineReporter" || event.ts < target.startTsUs || event.ts > target.endTsUs) return false;
-    const state = event.args?.frame_reporter?.state;
-    return state === "STATE_DROPPED";
-  }).length;
+  const framePipeline = buildFramePipeline(trace).filter(
+    (row) => row.tsUs >= target.startTsUs && row.tsUs <= target.endTsUs,
+  );
+  const requests = buildRequests(trace).filter(
+    (row) => row.startTimeUs >= target.startTsUs && row.startTimeUs <= target.endTsUs,
+  );
+  const layoutShifts = buildLayoutShifts(trace).filter(
+    (row) => row.tsUs >= target.startTsUs && row.tsUs <= target.endTsUs,
+  );
+  const softNavigations = buildSoftNavigations(trace).filter(
+    (row) => row.startTsUs <= target.endTsUs && row.endTsUs >= target.startTsUs,
+  );
+  const screenshots = buildScreenshots(trace).filter(
+    (row) => row.tsUs >= target.startTsUs && row.tsUs <= target.endTsUs,
+  );
+  const codeHotspots = buildCodeHotspots(trace)
+    .filter((row) => row.rawEventIds.some((eventId: string) => {
+      const rawIndex = Number(String(eventId).replace('evt:', ''));
+      const event = trace.traceEvents[rawIndex];
+      return event && event.ts >= target.startTsUs && event.ts <= target.endTsUs;
+    }))
+    .slice(0, 20);
+  const droppedFrames = framePipeline.filter((row) => row.state === "STATE_DROPPED").length;
   return {
     interaction: target,
     renders: renderMeasures,
@@ -560,6 +880,12 @@ function buildInteractionReport(trace: ParsedTrace, interactionId?: string) {
       .slice(0, 20),
     eventDispatches,
     droppedFrames,
+    requests,
+    layoutShifts,
+    softNavigations,
+    screenshots,
+    framePipeline,
+    codeHotspots,
   };
 }
 
@@ -804,7 +1130,15 @@ export class DevtoolsDriver implements SourceDriver {
     session.layers.register({ key: "devtools/dims.screenshots", deps: ["devtools/trace"], build: async () => buildScreenshots(trace) });
     session.layers.register({ key: "devtools/dims.interactions", deps: ["devtools/trace"], build: async () => buildInteractions(trace) });
     session.layers.register({ key: "devtools/dims.scripts", deps: ["devtools/trace"], build: async () => buildScripts(trace) });
+    session.layers.register({ key: "devtools/dims.layoutShifts", deps: ["devtools/trace"], build: async () => buildLayoutShifts(trace) });
+    session.layers.register({ key: "devtools/dims.softNavigations", deps: ["devtools/trace"], build: async () => buildSoftNavigations(trace) });
     session.layers.register({ key: "devtools/views.renderMeasures", deps: ["devtools/trace"], build: async () => buildRenderMeasures(trace) });
+    session.layers.register({ key: "devtools/views.framePipeline", deps: ["devtools/trace"], build: async () => buildFramePipeline(trace) });
+    session.layers.register({ key: "devtools/views.mainThreadTasks", deps: ["devtools/trace", "devtools/facts.events"], build: async () => buildMainThreadTasks(trace) });
+    session.layers.register({ key: "devtools/views.codeHotspots", deps: ["devtools/trace"], build: async () => buildCodeHotspots(trace) });
+    session.layers.register({ key: "devtools/views.cpuHotspots", deps: ["devtools/trace"], build: async () => buildCpuHotspots(trace) });
+    session.layers.register({ key: "devtools/views.interactionWindows", deps: ["devtools/trace"], build: async () => buildInteractionWindows(trace) });
+    session.layers.register({ key: "devtools/views.visualChanges", deps: ["devtools/trace"], build: async () => buildVisualChanges(trace) });
     session.layers.register({ key: "code/dims.sourceMaps", deps: ["devtools/trace"], build: async () => buildSourceMaps(trace) });
     session.layers.register({ key: "code/dims.sources", deps: ["devtools/trace"], build: async () => buildSources(trace) });
 
@@ -912,6 +1246,34 @@ export class DevtoolsDriver implements SourceDriver {
       },
     });
     session.registerTable({
+      name: "devtools.dims.layoutShifts",
+      description: "Layout shifts observed in the trace",
+      columns: [
+        { name: "layoutShiftId", type: "string" },
+        { name: "tsUs", type: "number", unit: "µs" },
+        { name: "score", type: "number" },
+        { name: "cumulativeScore", type: "number" },
+      ],
+      async rows(sessionRef, options) {
+        const rows = await sessionRef.layers.get<any[]>("devtools/dims.layoutShifts");
+        return options?.limit ? rows.slice(0, options.limit) : rows;
+      },
+    });
+    session.registerTable({
+      name: "devtools.dims.softNavigations",
+      description: "Soft navigation contexts inferred from SoftNavigation events",
+      columns: [
+        { name: "softNavigationId", type: "string" },
+        { name: "startTsUs", type: "number", unit: "µs" },
+        { name: "durationMs", type: "number", unit: "ms" },
+        { name: "domModifications", type: "number" },
+      ],
+      async rows(sessionRef, options) {
+        const rows = await sessionRef.layers.get<any[]>("devtools/dims.softNavigations");
+        return options?.limit ? rows.slice(0, options.limit) : rows;
+      },
+    });
+    session.registerTable({
       name: "devtools.views.renderMeasures",
       description: "Parsed render measures derived from blink.user_timing and UserTiming::Measure",
       columns: [
@@ -922,6 +1284,90 @@ export class DevtoolsDriver implements SourceDriver {
       ],
       async rows(sessionRef, options) {
         const rows = await sessionRef.layers.get<any[]>("devtools/views.renderMeasures");
+        return options?.limit ? rows.slice(0, options.limit) : rows;
+      },
+    });
+    session.registerTable({
+      name: "devtools.views.framePipeline",
+      description: "Frame pipeline rows derived from PipelineReporter events",
+      columns: [
+        { name: "frameReportId", type: "string" },
+        { name: "frameSequence", type: "string" },
+        { name: "state", type: "string" },
+        { name: "tsUs", type: "number", unit: "µs" },
+      ],
+      async rows(sessionRef, options) {
+        const rows = await sessionRef.layers.get<any[]>("devtools/views.framePipeline");
+        return options?.limit ? rows.slice(0, options.limit) : rows;
+      },
+    });
+    session.registerTable({
+      name: "devtools.views.mainThreadTasks",
+      description: "Main-thread task windows on renderer main thread",
+      columns: [
+        { name: "taskId", type: "string" },
+        { name: "durationMs", type: "number", unit: "ms" },
+        { name: "functionCalls", type: "number" },
+        { name: "layouts", type: "number" },
+        { name: "paints", type: "number" },
+      ],
+      async rows(sessionRef, options) {
+        const rows = await sessionRef.layers.get<any[]>("devtools/views.mainThreadTasks");
+        return options?.limit ? rows.slice(0, options.limit) : rows;
+      },
+    });
+    session.registerTable({
+      name: "devtools.views.codeHotspots",
+      description: "Aggregated script/function hotspots from FunctionCall and EvaluateScript",
+      columns: [
+        { name: "hotspotId", type: "string" },
+        { name: "url", type: "string" },
+        { name: "functionName", type: "string" },
+        { name: "totalDurationMs", type: "number", unit: "ms" },
+      ],
+      async rows(sessionRef, options) {
+        const rows = await sessionRef.layers.get<any[]>("devtools/views.codeHotspots");
+        return options?.limit ? rows.slice(0, options.limit) : rows;
+      },
+    });
+    session.registerTable({
+      name: "devtools.views.cpuHotspots",
+      description: "Aggregated hotspots from CPU profile chunks",
+      columns: [
+        { name: "cpuHotspotId", type: "string" },
+        { name: "functionName", type: "string" },
+        { name: "url", type: "string" },
+        { name: "sampleCount", type: "number" },
+      ],
+      async rows(sessionRef, options) {
+        const rows = await sessionRef.layers.get<any[]>("devtools/views.cpuHotspots");
+        return options?.limit ? rows.slice(0, options.limit) : rows;
+      },
+    });
+    session.registerTable({
+      name: "devtools.views.interactionWindows",
+      description: "Interaction windows enriched with related counts",
+      columns: [
+        { name: "interactionId", type: "string" },
+        { name: "renderCount", type: "number" },
+        { name: "requestCount", type: "number" },
+        { name: "droppedFrameCount", type: "number" },
+      ],
+      async rows(sessionRef, options) {
+        const rows = await sessionRef.layers.get<any[]>("devtools/views.interactionWindows");
+        return options?.limit ? rows.slice(0, options.limit) : rows;
+      },
+    });
+    session.registerTable({
+      name: "devtools.views.visualChanges",
+      description: "Ordered list of screenshots, paints, and layout shifts",
+      columns: [
+        { name: "changeId", type: "string" },
+        { name: "kind", type: "string" },
+        { name: "tsUs", type: "number", unit: "µs" },
+      ],
+      async rows(sessionRef, options) {
+        const rows = await sessionRef.layers.get<any[]>("devtools/views.visualChanges");
         return options?.limit ? rows.slice(0, options.limit) : rows;
       },
     });
@@ -956,6 +1402,8 @@ export class DevtoolsDriver implements SourceDriver {
 
     session.registerReport(createReport("devtools.summary", "High-level DevTools trace summary", (traceValue) => buildSummary(traceValue)));
     session.registerReport(createReport("devtools.interaction", "Detailed interaction report", (traceValue, args) => buildInteractionReport(traceValue, typeof args?.id === "string" ? args.id : undefined)));
+    session.registerReport(createReport("devtools.hotspots", "Combined code and CPU hotspot summary", (traceValue) => buildHotspotsReport(traceValue)));
+    session.registerReport(createReport("devtools.script", "Script-centric report with source and hotspot attribution", (traceValue, args) => buildScriptReport(traceValue, args)));
 
     session.registerArtifactProvider(new DevtoolsArtifactProvider(trace));
     session.registerCollection(screenshotCollection);
@@ -966,10 +1414,27 @@ export class DevtoolsDriver implements SourceDriver {
     session.registerNamespace("devtools", {
       interactions: {
         rows: async () => session.getTable("devtools.dims.interactions")!.rows(session),
+        windows: async () => session.getTable("devtools.views.interactionWindows")!.rows(session),
+      },
+      frames: {
+        rows: async () => session.getTable("devtools.views.framePipeline")!.rows(session),
+      },
+      tasks: {
+        rows: async () => session.getTable("devtools.views.mainThreadTasks")!.rows(session),
+      },
+      code: {
+        hotspots: async () => session.getTable("devtools.views.codeHotspots")!.rows(session),
+        cpuHotspots: async () => session.getTable("devtools.views.cpuHotspots")!.rows(session),
       },
       report: {
         summary: async () => session.getReport("devtools.summary")!.run(session),
         interaction: async (id?: string) => session.getReport("devtools.interaction")!.run(session, id ? { id } : {}),
+        hotspots: async () => session.getReport("devtools.hotspots")!.run(session),
+        script: async (scriptId?: string, url?: string) =>
+          session.getReport("devtools.script")!.run(session, {
+            ...(scriptId ? { scriptId } : {}),
+            ...(url ? { url } : {}),
+          }),
       },
       files: {
         screenshots: async () => session.exportCollection("devtools.screenshots"),

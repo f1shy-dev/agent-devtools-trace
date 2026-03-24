@@ -95,6 +95,17 @@ export class TraceServerClient {
     return this.request<SchemaResponse>("GET", `/sessions/${id}/schema`);
   }
 
+  schemaPaths(id: string) {
+    return this.request<{ paths: unknown[] }>("GET", `/sessions/${id}/schema/paths`);
+  }
+
+  schemaSamples(id: string, path: string) {
+    return this.request<{ path: string; samples: unknown[] }>(
+      "GET",
+      `/sessions/${id}/schema/samples?path=${encodeURIComponent(path)}`,
+    );
+  }
+
   async tables(id: string) {
     const result = await this.request<{ tables: TableInfo[] }>("GET", `/sessions/${id}/tables`);
     return result.tables;

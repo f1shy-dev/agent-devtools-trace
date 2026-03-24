@@ -2,6 +2,7 @@ import { statSync } from "fs";
 import { LayerHost } from "./layer-host.js";
 import { ArtifactStore, FileCollectionStore, FileMaterializer } from "./artifacts.js";
 import { WorkspaceManager } from "./workspace.js";
+import { discoverJsonPaths, sampleJsonPath } from "./json-introspect.js";
 import type {
   ArtifactData,
   ArtifactProvider,
@@ -42,6 +43,7 @@ export class DatasetSession implements DatasetSessionContract {
   private readonly rawRowProviders = new Map<string, () => Promise<unknown[]>>();
   private readonly rawDocumentProvider: () => Promise<unknown>;
   private readonly capabilityProvider: () => Promise<CapabilityMap>;
+  private schemaPathCache?: Promise<ReturnType<typeof discoverJsonPaths>>;
 
   constructor(args: {
     sourcePath: string;
@@ -135,6 +137,17 @@ export class DatasetSession implements DatasetSessionContract {
     return this.rawDocumentProvider();
   }
 
+  async schemaPaths() {
+    if (!this.schemaPathCache) {
+      this.schemaPathCache = this.rawDocument().then((document) => discoverJsonPaths(document));
+    }
+    return this.schemaPathCache;
+  }
+
+  async schemaSamples(path: string) {
+    return sampleJsonPath(await this.rawDocument(), path);
+  }
+
   async rawRows(name: string) {
     const provider = this.rawRowProviders.get(name);
     if (!provider) {
@@ -182,6 +195,8 @@ export class DatasetSession implements DatasetSessionContract {
         collections: async () => session.listCollections(),
         describeTable: async (name: string) => session.listTables().find((table) => table.name === name) ?? null,
         describeReport: async (name: string) => session.listReports().find((report) => report.name === name) ?? null,
+        paths: async () => session.schemaPaths(),
+        samples: async (path: string) => session.schemaSamples(path),
       },
       raw: {
         document: async () => session.rawDocument(),

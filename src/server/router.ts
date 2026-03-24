@@ -155,6 +155,22 @@ export async function handleRequest(req: Request): Promise<Response> {
     });
   }
 
+  const schemaPathsMatch = pathname.match(/^\/sessions\/([^/]+)\/schema\/paths$/);
+  if (schemaPathsMatch && method === "GET") {
+    const session = sessionManager.get(schemaPathsMatch[1]!);
+    if (!session) return json({ error: `Session not found: ${schemaPathsMatch[1]}` }, 404);
+    return json({ paths: await session.schemaPaths() });
+  }
+
+  const schemaSamplesMatch = pathname.match(/^\/sessions\/([^/]+)\/schema\/samples$/);
+  if (schemaSamplesMatch && method === "GET") {
+    const session = sessionManager.get(schemaSamplesMatch[1]!);
+    if (!session) return json({ error: `Session not found: ${schemaSamplesMatch[1]}` }, 404);
+    const requestedPath = url.searchParams.get("path");
+    if (!requestedPath) return json({ error: "path is required" }, 400);
+    return json({ path: requestedPath, samples: await session.schemaSamples(requestedPath) });
+  }
+
   const tablesMatch = pathname.match(/^\/sessions\/([^/]+)\/tables$/);
   if (tablesMatch && method === "GET") {
     const session = sessionManager.get(tablesMatch[1]!);

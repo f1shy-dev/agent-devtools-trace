@@ -103,6 +103,8 @@ export interface DatasetQueryApi {
     collections(): Promise<FileCollectionInfo[]>;
     describeTable(name: string): Promise<TableInfo | null>;
     describeReport(name: string): Promise<ReportInfo | null>;
+    paths(): Promise<Array<{ path: string; count: number; types: string[]; samples: Array<string | number | boolean | null> }>>;
+    samples(path: string): Promise<unknown[]>;
   };
   raw: {
     document(): Promise<unknown>;
@@ -173,6 +175,8 @@ export interface DatasetSession {
   listCollections(): FileCollectionInfo[];
   rawDocument(): Promise<unknown>;
   rawRows(name: string): Promise<unknown[]>;
+  schemaPaths(): Promise<Array<{ path: string; count: number; types: string[]; samples: Array<string | number | boolean | null> }>>;
+  schemaSamples(path: string): Promise<unknown[]>;
   createQueryApi(options?: QueryRuntimeOptions): DatasetQueryApi;
   listArtifacts(): Promise<ArtifactRef[]>;
   getArtifact(id: string): Promise<ArtifactRef | null>;

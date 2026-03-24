@@ -46,10 +46,13 @@ afterEach(() => {
 
 describe("raw json driver", () => {
   it("loads raw json and exposes inferred tables and reports", async () => {
-    const file = createRawFile([
-      { id: 1, name: "alpha" },
-      { id: 2, name: "beta" },
-    ]);
+    const file = createRawFile({
+      rows: [
+        { id: 1, name: "alpha", ts: 100 },
+        { id: 2, name: "beta", ts: 200 },
+      ],
+      screenshot: `data:image/png;base64,${Buffer.from("raw-image").toString("base64")}`,
+    });
     const sessionId = await loadSession(file);
 
     const infoResponse = await handleRequest(new Request(`http://trace-server/sessions/${sessionId}`));
@@ -59,7 +62,9 @@ describe("raw json driver", () => {
 
     const schemaResponse = await handleRequest(new Request(`http://trace-server/sessions/${sessionId}/schema`));
     const schemaPayload = await parseJson(schemaResponse);
-    expect(schemaPayload.tables.some((table: any) => table.name === "raw.inferred.main")).toBe(true);
+    expect(schemaPayload.tables.some((table: any) => table.name === "raw.inferred.rows")).toBe(true);
+    expect(schemaPayload.tables.some((table: any) => table.name === "raw.schema.paths")).toBe(true);
+    expect(schemaPayload.tables.some((table: any) => table.name === "raw.embeddedBlobs")).toBe(true);
     expect(schemaPayload.reports.some((report: any) => report.name === "raw.summary")).toBe(true);
 
     const reportResponse = await handleRequest(
@@ -68,8 +73,18 @@ describe("raw json driver", () => {
       }),
     );
     const reportPayload = await parseJson(reportResponse);
-    expect(reportPayload.result.topLevelType).toBe("array");
+    expect(reportPayload.result.topLevelType).toBe("object");
     expect(reportPayload.result.inferredTables[0].rows).toBe(2);
+    expect(reportPayload.result.timeFields).toContain("$.rows[].ts");
+    expect(reportPayload.result.embeddedBlobCount).toBe(1);
+
+    const schemaPathsResponse = await handleRequest(new Request(`http://trace-server/sessions/${sessionId}/schema/paths`));
+    const schemaPathsPayload = await parseJson(schemaPathsResponse);
+    expect(schemaPathsPayload.paths.some((row: any) => row.path === "$.rows[].name")).toBe(true);
+
+    const samplesResponse = await handleRequest(new Request(`http://trace-server/sessions/${sessionId}/schema/samples?path=${encodeURIComponent("$.rows[].name")}`));
+    const samplesPayload = await parseJson(samplesResponse);
+    expect(samplesPayload.samples).toEqual(["alpha", "beta"]);
 
     const queryResponse = await handleRequest(
       new Request(`http://trace-server/sessions/${sessionId}/query`, {
@@ -77,13 +92,22 @@ describe("raw json driver", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           code: `
-const rows = await (await ds.tables.get('raw.inferred.main')).rows();
-return rows.map(row => row.name).join(',');
+const rows = await (await ds.tables.get('raw.inferred.rows')).rows();
+const blobs = await (await ds.tables.get('raw.embeddedBlobs')).rows();
+return rows.map(row => row.name).join(',') + '|' + blobs.length;
 `,
         }),
       }),
     );
     const queryPayload = await parseJson(queryResponse);
-    expect(queryPayload.result).toBe('"alpha,beta"');
+    expect(queryPayload.result).toBe('"alpha,beta|1"');
+
+    const exportResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/files/collections/${encodeURIComponent("raw.embedded-blobs")}/export`, {
+        method: "POST",
+      }),
+    );
+    const exportPayload = await parseJson(exportResponse);
+    expect(exportPayload.fileCount).toBe(1);
   });
 });

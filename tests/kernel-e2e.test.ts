@@ -111,6 +111,72 @@ function sampleTrace(): TracePayload {
         args: { data: { requestId: "req-1" } },
       },
       {
+        cat: "disabled-by-default-devtools.timeline",
+        name: "RunTask",
+        ph: "X",
+        pid: 1,
+        tid: 1,
+        ts: 1500,
+        dur: 10000,
+        args: {},
+      },
+      {
+        cat: "devtools.timeline",
+        name: "FunctionCall",
+        ph: "X",
+        pid: 1,
+        tid: 1,
+        ts: 1510,
+        dur: 3000,
+        args: {
+          data: {
+            functionName: "renderApp",
+            url: "http://example.com/app.js",
+            scriptId: 10,
+            lineNumber: 12,
+            columnNumber: 3,
+          },
+        },
+      },
+      {
+        cat: "disabled-by-default-v8.cpu_profiler",
+        name: "ProfileChunk",
+        ph: "P",
+        pid: 1,
+        tid: 1,
+        ts: 1520,
+        args: {
+          data: {
+            cpuProfile: {
+              nodes: [
+                { id: 1, callFrame: { functionName: "(root)", scriptId: "0", codeType: "other" } },
+                { id: 2, parent: 1, callFrame: { functionName: "renderApp", scriptId: "10", url: "http://example.com/app.js", lineNumber: 12, columnNumber: 3, codeType: "JS" } },
+              ],
+              samples: [2, 2, 2],
+              timeDeltas: [100, 100, 100],
+            },
+          },
+        },
+      },
+      {
+        cat: "loading",
+        name: "SoftNavigation",
+        ph: "b",
+        pid: 1,
+        tid: 1,
+        ts: 1995,
+        args: {},
+      },
+      {
+        cat: "loading",
+        name: "SoftNavigationHeuristics::CreateNewContext",
+        ph: "n",
+        pid: 1,
+        tid: 1,
+        ts: 1996,
+        args: { context: { softNavContextId: 12, domModifications: 0 } },
+      },
+      {
         cat: "devtools.timeline",
         name: "EventTiming",
         ph: "b",
@@ -215,13 +281,50 @@ function sampleTrace(): TracePayload {
         args: { sampleTraceId: 124 },
       },
       {
+        cat: "loading",
+        name: "LayoutShift",
+        ph: "I",
+        pid: 1,
+        tid: 1,
+        ts: 2090,
+        args: { data: { score: 0.12, cumulative_score: 0.12, had_recent_input: true, impacted_nodes: [{ node_id: 1 }] } },
+      },
+      {
+        cat: "loading",
+        name: "SoftNavigationContext::AddedModifiedNodeInAnimationFrame",
+        ph: "n",
+        pid: 1,
+        tid: 1,
+        ts: 2095,
+        args: { context: { softNavContextId: 12, domModifications: 4 } },
+      },
+      {
         cat: "benchmark",
         name: "PipelineReporter",
         ph: "b",
         pid: 1,
         tid: 1,
         ts: 2100,
-        args: { frame_reporter: { state: "STATE_DROPPED" } },
+        args: { frame_reporter: { state: "STATE_DROPPED", frame_sequence: 7, affects_smoothness: true, has_high_latency: true } },
+      },
+      {
+        cat: "devtools.timeline",
+        name: "Paint",
+        ph: "X",
+        pid: 1,
+        tid: 1,
+        ts: 2110,
+        dur: 500,
+        args: {},
+      },
+      {
+        cat: "devtools.timeline",
+        name: "AnimationFrame::Presentation",
+        ph: "n",
+        pid: 1,
+        tid: 1,
+        ts: 2120,
+        args: { id: "frame-1" },
       },
     ],
   };
@@ -269,8 +372,16 @@ describe("dataset kernel e2e", () => {
     const schemaPayload = await parseJson(schemaResponse);
     expect(schemaPayload.kind).toBe("devtools");
     expect(schemaPayload.tables.some((table: any) => table.name === "devtools.dims.interactions")).toBe(true);
+    expect(schemaPayload.tables.some((table: any) => table.name === "devtools.views.framePipeline")).toBe(true);
+    expect(schemaPayload.tables.some((table: any) => table.name === "devtools.views.codeHotspots")).toBe(true);
     expect(schemaPayload.reports.some((report: any) => report.name === "devtools.interaction")).toBe(true);
+    expect(schemaPayload.reports.some((report: any) => report.name === "devtools.script")).toBe(true);
     expect(schemaPayload.collections.some((collection: any) => collection.id === "devtools.screenshots")).toBe(true);
+
+    const schemaPathsResponse = await handleRequest(new Request(`http://trace-server/sessions/${sessionId}/schema/paths`));
+    expect(schemaPathsResponse.status).toBe(200);
+    const schemaPathsPayload = await parseJson(schemaPathsResponse);
+    expect(schemaPathsPayload.paths.some((row: any) => row.path === "$.traceEvents[].name")).toBe(true);
   });
 
   it("supports generic table queries and generic reports", async () => {
@@ -303,6 +414,28 @@ describe("dataset kernel e2e", () => {
     expect(reportPayload.result.interaction.interactionId).toBe("4758");
     expect(reportPayload.result.topComponents[0].componentName).toBe("ChatBlock");
     expect(reportPayload.result.droppedFrames).toBe(1);
+    expect(reportPayload.result.layoutShifts).toHaveLength(1);
+    expect(reportPayload.result.softNavigations).toHaveLength(1);
+
+    const framePipelineResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/tables/${encodeURIComponent("devtools.views.framePipeline")}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limit: 5 }),
+      }),
+    );
+    const framePipelinePayload = await parseJson(framePipelineResponse);
+    expect(framePipelinePayload.rows[0].frameSequence).toBe("7");
+    expect(framePipelinePayload.rows[0].screenshotArtifactId).toBe("artifact:devtools:screenshot:0");
+
+    const hotspotsResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/reports/${encodeURIComponent("devtools.hotspots")}`, {
+        method: "POST",
+      }),
+    );
+    const hotspotsPayload = await parseJson(hotspotsResponse);
+    expect(hotspotsPayload.result.codeHotspots[0].functionName).toBe("renderApp");
+    expect(hotspotsPayload.result.cpuHotspots[0].functionName).toBe("renderApp");
   });
 
   it("supports querying through the ds runtime", async () => {
@@ -324,7 +457,7 @@ return { kind: await ds.schema.kind(), totalEvents: summary.totalEvents, interac
     );
     expect(queryResponse.status).toBe(200);
     const queryPayload = await parseJson(queryResponse);
-    expect(JSON.parse(queryPayload.result)).toEqual({ kind: "devtools", totalEvents: 15, interactionCount: 1 });
+    expect(JSON.parse(queryPayload.result)).toEqual({ kind: "devtools", totalEvents: 24, interactionCount: 1 });
   });
 
   it("lists artifacts and materializes/exports files", async () => {
