@@ -137,12 +137,25 @@ export class TraceServerClient {
     return result.artifacts;
   }
 
+  artifact(id: string, artifactId: string) {
+    return this.request<any>("GET", `/sessions/${id}/artifacts/${encodeURIComponent(artifactId)}`);
+  }
+
+  artifactContent(id: string, artifactId: string) {
+    return this.request<any>("GET", `/sessions/${id}/artifacts/${encodeURIComponent(artifactId)}/content`);
+  }
+
   materializeArtifact(id: string, artifactId: string, options?: Record<string, unknown>) {
     return this.request<any>(
       "POST",
       `/sessions/${id}/artifacts/${encodeURIComponent(artifactId)}/materialize`,
       options ?? {},
     );
+  }
+
+  async layers(id: string) {
+    const result = await this.request<{ layers: unknown[] }>("GET", `/sessions/${id}/layers`);
+    return result.layers;
   }
 
   async collections(id: string) {

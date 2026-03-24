@@ -789,10 +789,10 @@ function buildScriptReport(trace: ParsedTrace, args?: Record<string, unknown>) {
     return { script: null, sourceMap: null, sources: [], codeHotspots: [], cpuHotspots: [] };
   }
   const codeHotspots = buildCodeHotspots(trace).filter(
-    (row) => row.scriptId === script.scriptId || (script.url && row.url === script.url),
+    (row) => row.scriptId === script.scriptId || (!!script.url && row.url === script.url),
   );
   const cpuHotspots = buildCpuHotspots(trace).filter(
-    (row) => row.scriptId === script.scriptId || (script.url && row.url === script.url),
+    (row) => row.scriptId === script.scriptId || (!!script.url && row.url === script.url),
   );
   const sourceMap = script.sourceMapId
     ? buildSourceMaps(trace).find((row) => row.sourceMapId === script.sourceMapId) ?? null
@@ -806,6 +806,62 @@ function buildScriptReport(trace: ParsedTrace, args?: Record<string, unknown>) {
     sources,
     codeHotspots,
     cpuHotspots,
+  };
+}
+
+function buildFrameReport(trace: ParsedTrace, args?: Record<string, unknown>) {
+  const frameSequence = typeof args?.frameSequence === "string" ? args.frameSequence : undefined;
+  const frame = frameSequence
+    ? buildFramePipeline(trace).find((row) => row.frameSequence === frameSequence)
+    : buildFramePipeline(trace)[0];
+  if (!frame) {
+    return { frame: null, screenshot: null, visualChanges: [] };
+  }
+  const screenshot = frame.screenshotArtifactId
+    ? buildScreenshots(trace).find((row) => row.artifactId === frame.screenshotArtifactId) ?? null
+    : null;
+  const visualChanges = buildVisualChanges(trace).filter(
+    (row) => row.tsUs >= frame.tsUs - 16_000 && row.tsUs <= frame.tsUs + 16_000,
+  );
+  return { frame, screenshot, visualChanges };
+}
+
+function buildRequestReport(trace: ParsedTrace, args?: Record<string, unknown>) {
+  const requestId = typeof args?.requestId === "string" ? args.requestId : undefined;
+  const url = typeof args?.url === "string" ? args.url : undefined;
+  const request = requestId
+    ? buildRequests(trace).find((row) => row.requestId === requestId)
+    : url
+      ? buildRequests(trace).find((row) => row.url === url)
+      : buildRequests(trace)[0];
+  if (!request) {
+    return { request: null };
+  }
+  const visualChanges = buildVisualChanges(trace).filter(
+    (row) => row.tsUs >= request.startTimeUs && row.tsUs <= (request.endTimeUs ?? request.startTimeUs),
+  );
+  return { request, visualChanges };
+}
+
+function buildSoftNavigationReport(trace: ParsedTrace, args?: Record<string, unknown>) {
+  const softNavigationId = typeof args?.softNavigationId === "string" ? args.softNavigationId : undefined;
+  const softNavigation = softNavigationId
+    ? buildSoftNavigations(trace).find((row) => row.softNavigationId === softNavigationId)
+    : buildSoftNavigations(trace)[0];
+  if (!softNavigation) {
+    return { softNavigation: null, layoutShifts: [], screenshots: [], requests: [] };
+  }
+  return {
+    softNavigation,
+    layoutShifts: buildLayoutShifts(trace).filter(
+      (row) => row.tsUs >= softNavigation.startTsUs && row.tsUs <= softNavigation.endTsUs,
+    ),
+    screenshots: buildScreenshots(trace).filter(
+      (row) => row.tsUs >= softNavigation.startTsUs && row.tsUs <= softNavigation.endTsUs,
+    ),
+    requests: buildRequests(trace).filter(
+      (row) => row.startTimeUs >= softNavigation.startTsUs && row.startTimeUs <= softNavigation.endTsUs,
+    ),
   };
 }
 
@@ -1402,6 +1458,9 @@ export class DevtoolsDriver implements SourceDriver {
 
     session.registerReport(createReport("devtools.summary", "High-level DevTools trace summary", (traceValue) => buildSummary(traceValue)));
     session.registerReport(createReport("devtools.interaction", "Detailed interaction report", (traceValue, args) => buildInteractionReport(traceValue, typeof args?.id === "string" ? args.id : undefined)));
+    session.registerReport(createReport("devtools.frame", "Frame pipeline report", (traceValue, args) => buildFrameReport(traceValue, args)));
+    session.registerReport(createReport("devtools.request", "Request-centric report", (traceValue, args) => buildRequestReport(traceValue, args)));
+    session.registerReport(createReport("devtools.soft-navigation", "Soft-navigation report", (traceValue, args) => buildSoftNavigationReport(traceValue, args)));
     session.registerReport(createReport("devtools.hotspots", "Combined code and CPU hotspot summary", (traceValue) => buildHotspotsReport(traceValue)));
     session.registerReport(createReport("devtools.script", "Script-centric report with source and hotspot attribution", (traceValue, args) => buildScriptReport(traceValue, args)));
 
@@ -1429,6 +1488,14 @@ export class DevtoolsDriver implements SourceDriver {
       report: {
         summary: async () => session.getReport("devtools.summary")!.run(session),
         interaction: async (id?: string) => session.getReport("devtools.interaction")!.run(session, id ? { id } : {}),
+        frame: async (frameSequence?: string) => session.getReport("devtools.frame")!.run(session, frameSequence ? { frameSequence } : {}),
+        request: async (requestId?: string, url?: string) =>
+          session.getReport("devtools.request")!.run(session, {
+            ...(requestId ? { requestId } : {}),
+            ...(url ? { url } : {}),
+          }),
+        softNavigation: async (softNavigationId?: string) =>
+          session.getReport("devtools.soft-navigation")!.run(session, softNavigationId ? { softNavigationId } : {}),
         hotspots: async () => session.getReport("devtools.hotspots")!.run(session),
         script: async (scriptId?: string, url?: string) =>
           session.getReport("devtools.script")!.run(session, {
@@ -1439,6 +1506,19 @@ export class DevtoolsDriver implements SourceDriver {
       files: {
         screenshots: async () => session.exportCollection("devtools.screenshots"),
         scripts: async () => session.exportCollection("devtools.scripts"),
+      },
+    });
+
+    session.registerNamespace("code", {
+      sourceMaps: {
+        rows: async () => session.getTable("code.dims.sourceMaps")!.rows(session),
+      },
+      sources: {
+        rows: async () => session.getTable("code.dims.sources")!.rows(session),
+      },
+      files: {
+        sourceMaps: async () => session.exportCollection("code.source-maps"),
+        sources: async () => session.exportCollection("code.sources"),
       },
     });
 

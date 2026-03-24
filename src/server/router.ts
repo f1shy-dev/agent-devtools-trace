@@ -216,6 +216,28 @@ export async function handleRequest(req: Request): Promise<Response> {
     return json({ artifacts: await session.listArtifacts() });
   }
 
+  const artifactGetMatch = pathname.match(/^\/sessions\/([^/]+)\/artifacts\/(.+)$/);
+  if (artifactGetMatch && method === "GET" && !pathname.endsWith("/content") && !pathname.endsWith("/materialize")) {
+    const session = sessionManager.get(artifactGetMatch[1]!);
+    if (!session) return json({ error: `Session not found: ${artifactGetMatch[1]}` }, 404);
+    const artifact = await session.getArtifact(decodeURIComponent(artifactGetMatch[2]!));
+    if (!artifact) return json({ error: `Artifact not found: ${artifactGetMatch[2]}` }, 404);
+    return json(artifact);
+  }
+
+  const artifactContentMatch = pathname.match(/^\/sessions\/([^/]+)\/artifacts\/(.+)\/content$/);
+  if (artifactContentMatch && method === "GET") {
+    const session = sessionManager.get(artifactContentMatch[1]!);
+    if (!session) return json({ error: `Session not found: ${artifactContentMatch[1]}` }, 404);
+    const artifactId = decodeURIComponent(artifactContentMatch[2]!);
+    const artifact = await session.getArtifact(artifactId);
+    const data = await session.readArtifact(artifactId);
+    if (!artifact || !data) return json({ error: `Artifact not found: ${artifactId}` }, 404);
+    if (data.kind === "text") return new Response(data.text ?? "", { headers: { "Content-Type": artifact.mediaType } });
+    if (data.kind === "json") return new Response(JSON.stringify(data.json ?? null, null, 2), { headers: { "Content-Type": artifact.mediaType } });
+    return new Response(new Uint8Array(data.bytes ?? new Uint8Array()), { headers: { "Content-Type": artifact.mediaType } });
+  }
+
   const artifactMaterializeMatch = pathname.match(/^\/sessions\/([^/]+)\/artifacts\/(.+)\/materialize$/);
   if (artifactMaterializeMatch && method === "POST") {
     const session = sessionManager.get(artifactMaterializeMatch[1]!);
@@ -223,6 +245,13 @@ export async function handleRequest(req: Request): Promise<Response> {
     const artifactId = decodeURIComponent(artifactMaterializeMatch[2]!);
     const body = await readJson(req).catch(() => ({}));
     return json(await session.materializeArtifact(artifactId, body));
+  }
+
+  const layersMatch = pathname.match(/^\/sessions\/([^/]+)\/layers$/);
+  if (layersMatch && method === "GET") {
+    const session = sessionManager.get(layersMatch[1]!);
+    if (!session) return json({ error: `Session not found: ${layersMatch[1]}` }, 404);
+    return json({ layers: await session.layerStatus() });
   }
 
   const collectionsMatch = pathname.match(/^\/sessions\/([^/]+)\/files\/collections$/);

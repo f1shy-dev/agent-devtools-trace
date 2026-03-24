@@ -473,6 +473,21 @@ return { kind: await ds.schema.kind(), totalEvents: summary.totalEvents, interac
     expect(artifactIds).toContain("artifact:code:sourcemap:0");
     expect(artifactIds).toContain("artifact:code:source:0:0");
 
+    const artifactResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/artifacts/${encodeURIComponent("artifact:devtools:script:10")}`),
+    );
+    const artifactPayload = await parseJson(artifactResponse);
+    expect(artifactPayload.id).toBe("artifact:devtools:script:10");
+
+    const artifactContentResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/artifacts/${encodeURIComponent("artifact:devtools:script:10")}/content`),
+    );
+    expect(await artifactContentResponse.text()).toContain("inline source");
+
+    const layersResponse = await handleRequest(new Request(`http://trace-server/sessions/${sessionId}/layers`));
+    const layersPayload = await parseJson(layersResponse);
+    expect(layersPayload.layers.some((row: any) => row.key === "devtools/views.framePipeline")).toBe(true);
+
     const materializeResponse = await handleRequest(
       new Request(`http://trace-server/sessions/${sessionId}/artifacts/${encodeURIComponent("artifact:devtools:screenshot:0")}/materialize`, {
         method: "POST",
