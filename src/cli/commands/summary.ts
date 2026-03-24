@@ -13,9 +13,9 @@ import { ensureServer } from "../lifecycle";
 import type { NextAnalyzeSummaryResponse, SummaryResponse } from "../../shared/types";
 
 export default defineCommand({
-  meta: { description: "Show a high-level trace summary" },
+  meta: { description: "Show a high-level session summary" },
   args: {
-    session: { type: "positional", description: "Session ID", required: true },
+    session: { type: "positional", description: "Session ID or alias", required: true },
   },
   async run({ args }) {
     try {

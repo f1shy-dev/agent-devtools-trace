@@ -11,9 +11,9 @@ import {
 import { ensureServer } from "../lifecycle";
 
 export default defineCommand({
-  meta: { description: "Find long-running tasks" },
+  meta: { description: "[devtools] Find long-running tasks above a duration threshold" },
   args: {
-    session: { type: "positional", description: "Session ID", required: true },
+    session: { type: "positional", description: "Session ID or alias", required: true },
     threshold: {
       type: "string",
       description: "Minimum duration in ms (default: 50)",

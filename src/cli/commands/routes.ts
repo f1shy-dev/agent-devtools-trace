@@ -5,9 +5,9 @@ import { divider, formatBytes, formatNumber, renderTable } from "../format";
 import { ensureServer } from "../lifecycle";
 
 export default defineCommand({
-  meta: { description: "List analyzed routes with sizes" },
+  meta: { description: "[next-analyze] List analyzed routes with sizes" },
   args: {
-    session: { type: "positional", description: "Session ID", required: true },
+    session: { type: "positional", description: "Session ID or alias", required: true },
   },
   async run({ args }) {
     try {

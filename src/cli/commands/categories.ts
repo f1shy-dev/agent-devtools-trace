@@ -5,9 +5,9 @@ import { divider, formatNumber, formatPercent, renderTable } from "../format";
 import { ensureServer } from "../lifecycle";
 
 export default defineCommand({
-  meta: { description: "Show event category distribution" },
+  meta: { description: "[devtools] Show event category distribution" },
   args: {
-    session: { type: "positional", description: "Session ID", required: true },
+    session: { type: "positional", description: "Session ID or alias", required: true },
   },
   async run({ args }) {
     try {
