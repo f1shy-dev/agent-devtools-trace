@@ -22,7 +22,11 @@ class RuntimeTableQueryHandle implements TableQueryHandle {
   }
 
   query(plan: TableQueryPlan) {
-    return new RuntimeTableQueryHandle(this.session, this.tableName, mergeQueryPlans(this.currentPlan, plan));
+    return new RuntimeTableQueryHandle(
+      this.session,
+      this.tableName,
+      mergeQueryPlans(this.currentPlan, plan),
+    );
   }
 
   select(columns: string[]) {
@@ -79,7 +83,10 @@ class RuntimeReportQueryHandle implements ReportQueryHandle {
   ) {}
 
   args(args: Record<string, unknown>) {
-    return new RuntimeReportQueryHandle(this.session, this.reportName, { ...this.boundArgs, ...args });
+    return new RuntimeReportQueryHandle(this.session, this.reportName, {
+      ...this.boundArgs,
+      ...args,
+    });
   }
 
   run(args?: Record<string, unknown>) {

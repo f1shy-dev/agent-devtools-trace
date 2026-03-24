@@ -12,7 +12,12 @@ import type {
   ReportInfo,
 } from "../shared/types.js";
 
-async function requestUnix<T>(socketPath: string, method: string, path: string, body?: unknown): Promise<T> {
+async function requestUnix<T>(
+  socketPath: string,
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<T> {
   const payload = body ? JSON.stringify(body) : undefined;
   const headers: Record<string, string> = {};
   if (payload !== undefined) {
@@ -35,7 +40,9 @@ async function requestUnix<T>(socketPath: string, method: string, path: string, 
           const text = Buffer.concat(chunks).toString("utf8");
           const data = text ? (JSON.parse(text) as Record<string, any>) : {};
           if ((res.statusCode ?? 500) >= 400) {
-            reject(new Error(typeof data.error === "string" ? data.error : `HTTP ${res.statusCode}`));
+            reject(
+              new Error(typeof data.error === "string" ? data.error : `HTTP ${res.statusCode}`),
+            );
             return;
           }
           resolve(data as T);
@@ -142,7 +149,10 @@ export class TraceServerClient {
   }
 
   artifactContent(id: string, artifactId: string) {
-    return this.request<any>("GET", `/sessions/${id}/artifacts/${encodeURIComponent(artifactId)}/content`);
+    return this.request<any>(
+      "GET",
+      `/sessions/${id}/artifacts/${encodeURIComponent(artifactId)}/content`,
+    );
   }
 
   materializeArtifact(id: string, artifactId: string, options?: Record<string, unknown>) {
@@ -159,15 +169,24 @@ export class TraceServerClient {
   }
 
   pinLayer(id: string, layerKey: string) {
-    return this.request<{ layer: unknown }>("POST", `/sessions/${id}/layers/${encodeURIComponent(layerKey)}/pin`);
+    return this.request<{ layer: unknown }>(
+      "POST",
+      `/sessions/${id}/layers/${encodeURIComponent(layerKey)}/pin`,
+    );
   }
 
   unpinLayer(id: string, layerKey: string) {
-    return this.request<{ layer: unknown }>("POST", `/sessions/${id}/layers/${encodeURIComponent(layerKey)}/unpin`);
+    return this.request<{ layer: unknown }>(
+      "POST",
+      `/sessions/${id}/layers/${encodeURIComponent(layerKey)}/unpin`,
+    );
   }
 
   evictLayer(id: string, layerKey: string) {
-    return this.request<{ ok: boolean; key: string }>("POST", `/sessions/${id}/layers/${encodeURIComponent(layerKey)}/evict`);
+    return this.request<{ ok: boolean; key: string }>(
+      "POST",
+      `/sessions/${id}/layers/${encodeURIComponent(layerKey)}/evict`,
+    );
   }
 
   async collections(id: string) {
@@ -191,15 +210,24 @@ export class TraceServerClient {
   }
 
   pinLease(id: string, leaseId: string) {
-    return this.request<{ lease: unknown }>("POST", `/sessions/${id}/files/leases/${encodeURIComponent(leaseId)}/pin`);
+    return this.request<{ lease: unknown }>(
+      "POST",
+      `/sessions/${id}/files/leases/${encodeURIComponent(leaseId)}/pin`,
+    );
   }
 
   unpinLease(id: string, leaseId: string) {
-    return this.request<{ lease: unknown }>("POST", `/sessions/${id}/files/leases/${encodeURIComponent(leaseId)}/unpin`);
+    return this.request<{ lease: unknown }>(
+      "POST",
+      `/sessions/${id}/files/leases/${encodeURIComponent(leaseId)}/unpin`,
+    );
   }
 
   releaseLease(id: string, leaseId: string) {
-    return this.request<{ ok: boolean; leaseId: string }>("POST", `/sessions/${id}/files/leases/${encodeURIComponent(leaseId)}/release`);
+    return this.request<{ ok: boolean; leaseId: string }>(
+      "POST",
+      `/sessions/${id}/files/leases/${encodeURIComponent(leaseId)}/release`,
+    );
   }
 
   stopServer() {

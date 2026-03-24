@@ -22,7 +22,9 @@ async function readJson(req: Request) {
   }
 }
 
-function formatSession(session: ReturnType<typeof sessionManager.get> extends infer T ? Exclude<T, undefined> : never) {
+function formatSession(
+  session: ReturnType<typeof sessionManager.get> extends infer T ? Exclude<T, undefined> : never,
+) {
   return {
     ...session.manifest,
     alias: session.alias,
@@ -58,7 +60,10 @@ async function handleLoadSession(req: Request) {
   }
 
   try {
-    const session = sessionManager.create(await loadSource(resolved), typeof alias === "string" ? alias : undefined);
+    const session = sessionManager.create(
+      await loadSource(resolved),
+      typeof alias === "string" ? alias : undefined,
+    );
     return json(
       {
         sessionId: session.manifest.id,
@@ -86,7 +91,10 @@ async function handleQuery(sessionId: string, req: Request) {
     return json({ error: error instanceof Error ? error.message : String(error) }, 400);
   }
   const code = body.code;
-  const timeout = typeof body.timeout === "number" && Number.isFinite(body.timeout) && body.timeout > 0 ? body.timeout : DEFAULT_QUERY_TIMEOUT;
+  const timeout =
+    typeof body.timeout === "number" && Number.isFinite(body.timeout) && body.timeout > 0
+      ? body.timeout
+      : DEFAULT_QUERY_TIMEOUT;
   if (typeof code !== "string" || code.length === 0) {
     return json({ error: "code is required" }, 400);
   }
@@ -94,7 +102,11 @@ async function handleQuery(sessionId: string, req: Request) {
   try {
     const result = await executeQuery(session, code, timeout);
     const serialized = serializeResult(result);
-    return json({ result: serialized.serialized, duration: Math.round(performance.now() - start), truncated: serialized.truncated });
+    return json({
+      result: serialized.serialized,
+      duration: Math.round(performance.now() - start),
+      truncated: serialized.truncated,
+    });
   } catch (error) {
     return json(
       {
@@ -118,7 +130,8 @@ export async function handleRequest(req: Request): Promise<Response> {
 
   if (method === "GET" && pathname === "/health") return handleHealth();
   if (method === "POST" && pathname === "/sessions") return handleLoadSession(req);
-  if (method === "GET" && pathname === "/sessions") return json({ sessions: sessionManager.list() });
+  if (method === "GET" && pathname === "/sessions")
+    return json({ sessions: sessionManager.list() });
   if (method === "POST" && pathname === "/server/stop") return handleStop();
 
   const sessionMatch = pathname.match(/^\/sessions\/([^/]+)$/);
@@ -148,7 +161,12 @@ export async function handleRequest(req: Request): Promise<Response> {
     if (!session) return json({ error: `Session not found: ${schemaMatch[1]}` }, 404);
     return json({
       kind: session.manifest.kind,
-      namespaces: [...new Set([...session.listTables().map((t) => t.name.split(".")[0] ?? "default"), ...session.listReports().map((r) => r.name.split(".")[0] ?? "default")])].sort(),
+      namespaces: [
+        ...new Set([
+          ...session.listTables().map((t) => t.name.split(".")[0] ?? "default"),
+          ...session.listReports().map((r) => r.name.split(".")[0] ?? "default"),
+        ]),
+      ].sort(),
       tables: session.listTables(),
       reports: session.listReports(),
       collections: session.listCollections(),
@@ -237,7 +255,12 @@ export async function handleRequest(req: Request): Promise<Response> {
   }
 
   const artifactGetMatch = pathname.match(/^\/sessions\/([^/]+)\/artifacts\/(.+)$/);
-  if (artifactGetMatch && method === "GET" && !pathname.endsWith("/content") && !pathname.endsWith("/materialize")) {
+  if (
+    artifactGetMatch &&
+    method === "GET" &&
+    !pathname.endsWith("/content") &&
+    !pathname.endsWith("/materialize")
+  ) {
     const session = sessionManager.get(artifactGetMatch[1]!);
     if (!session) return json({ error: `Session not found: ${artifactGetMatch[1]}` }, 404);
     const artifact = await session.getArtifact(decodeURIComponent(artifactGetMatch[2]!));
@@ -253,12 +276,20 @@ export async function handleRequest(req: Request): Promise<Response> {
     const artifact = await session.getArtifact(artifactId);
     const data = await session.readArtifact(artifactId);
     if (!artifact || !data) return json({ error: `Artifact not found: ${artifactId}` }, 404);
-    if (data.kind === "text") return new Response(data.text ?? "", { headers: { "Content-Type": artifact.mediaType } });
-    if (data.kind === "json") return new Response(JSON.stringify(data.json ?? null, null, 2), { headers: { "Content-Type": artifact.mediaType } });
-    return new Response(new Uint8Array(data.bytes ?? new Uint8Array()), { headers: { "Content-Type": artifact.mediaType } });
+    if (data.kind === "text")
+      return new Response(data.text ?? "", { headers: { "Content-Type": artifact.mediaType } });
+    if (data.kind === "json")
+      return new Response(JSON.stringify(data.json ?? null, null, 2), {
+        headers: { "Content-Type": artifact.mediaType },
+      });
+    return new Response(new Uint8Array(data.bytes ?? new Uint8Array()), {
+      headers: { "Content-Type": artifact.mediaType },
+    });
   }
 
-  const artifactMaterializeMatch = pathname.match(/^\/sessions\/([^/]+)\/artifacts\/(.+)\/materialize$/);
+  const artifactMaterializeMatch = pathname.match(
+    /^\/sessions\/([^/]+)\/artifacts\/(.+)\/materialize$/,
+  );
   if (artifactMaterializeMatch && method === "POST") {
     const session = sessionManager.get(artifactMaterializeMatch[1]!);
     if (!session) return json({ error: `Session not found: ${artifactMaterializeMatch[1]}` }, 404);
@@ -292,7 +323,9 @@ export async function handleRequest(req: Request): Promise<Response> {
     return json({ collections: session.listCollections() });
   }
 
-  const collectionExportMatch = pathname.match(/^\/sessions\/([^/]+)\/files\/collections\/([^/]+)\/export$/);
+  const collectionExportMatch = pathname.match(
+    /^\/sessions\/([^/]+)\/files\/collections\/([^/]+)\/export$/,
+  );
   if (collectionExportMatch && method === "POST") {
     const [, sessionId, collectionId] = collectionExportMatch;
     const session = sessionManager.get(sessionId!);
@@ -308,7 +341,9 @@ export async function handleRequest(req: Request): Promise<Response> {
     return json({ leases: await session.listLeases() });
   }
 
-  const leaseActionMatch = pathname.match(/^\/sessions\/([^/]+)\/files\/leases\/([^/]+)\/(pin|unpin|release)$/);
+  const leaseActionMatch = pathname.match(
+    /^\/sessions\/([^/]+)\/files\/leases\/([^/]+)\/(pin|unpin|release)$/,
+  );
   if (leaseActionMatch && method === "POST") {
     const [, sessionId, leaseId, action] = leaseActionMatch;
     const session = sessionManager.get(sessionId!);

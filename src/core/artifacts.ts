@@ -55,7 +55,10 @@ export class FileCollectionStore {
 
   list() {
     return [...this.providers.values()]
-      .map<FileCollectionInfo>((provider) => ({ id: provider.id, description: provider.description }))
+      .map<FileCollectionInfo>((provider) => ({
+        id: provider.id,
+        description: provider.description,
+      }))
       .sort((left, right) => left.id.localeCompare(right.id));
   }
 
@@ -157,7 +160,11 @@ export class FileMaterializer {
       const targetPath = join(dir.path, item.relativePath);
       mkdirSync(dirname(targetPath), { recursive: true });
       writeFileSync(targetPath, bufferFromArtifactData(data));
-      manifestItems.push({ ...item, mediaType: artifact.mediaType, sizeBytes: artifact.sizeBytes } as FileCollectionItem & { mediaType?: string; sizeBytes?: number });
+      manifestItems.push({
+        ...item,
+        mediaType: artifact.mediaType,
+        sizeBytes: artifact.sizeBytes,
+      } as FileCollectionItem & { mediaType?: string; sizeBytes?: number });
     }
 
     const manifestPath = this.workspace.writeManifest(dir.path, {
@@ -165,7 +172,10 @@ export class FileMaterializer {
       collectionId,
       items: manifestItems,
     });
-    const totalBytes = manifestItems.reduce((sum, item) => sum + Number((item as any).sizeBytes ?? 0), 0);
+    const totalBytes = manifestItems.reduce(
+      (sum, item) => sum + Number((item as any).sizeBytes ?? 0),
+      0,
+    );
     this.workspace.updateLeaseBytes(dir.leaseId, totalBytes || undefined);
 
     return {

@@ -174,7 +174,14 @@ export interface DatasetQueryApi {
     collections(): Promise<FileCollectionInfo[]>;
     describeTable(name: string): Promise<TableInfo | null>;
     describeReport(name: string): Promise<ReportInfo | null>;
-    paths(): Promise<Array<{ path: string; count: number; types: string[]; samples: Array<string | number | boolean | null> }>>;
+    paths(): Promise<
+      Array<{
+        path: string;
+        count: number;
+        types: string[];
+        samples: Array<string | number | boolean | null>;
+      }>
+    >;
     samples(path: string): Promise<unknown[]>;
   };
   raw: {
@@ -250,7 +257,14 @@ export interface DatasetSession {
   listCollections(): FileCollectionInfo[];
   rawDocument(): Promise<unknown>;
   rawRows(name: string): Promise<unknown[]>;
-  schemaPaths(): Promise<Array<{ path: string; count: number; types: string[]; samples: Array<string | number | boolean | null> }>>;
+  schemaPaths(): Promise<
+    Array<{
+      path: string;
+      count: number;
+      types: string[];
+      samples: Array<string | number | boolean | null>;
+    }>
+  >;
   schemaSamples(path: string): Promise<unknown[]>;
   queryTable(name: string, plan?: TableQueryPlan): Promise<unknown[]>;
   countTable(name: string, plan?: TableQueryPlan): Promise<number>;

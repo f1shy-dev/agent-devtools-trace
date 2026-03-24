@@ -15,7 +15,10 @@ function typeOfValue(value: unknown): string {
 }
 
 export function discoverJsonPaths(value: unknown): JsonPathInfo[] {
-  const map = new Map<string, { count: number; types: Set<string>; samples: Array<string | number | boolean | null> }>();
+  const map = new Map<
+    string,
+    { count: number; types: Set<string>; samples: Array<string | number | boolean | null> }
+  >();
 
   const visit = (current: unknown, path: string) => {
     const type = typeOfValue(current);
@@ -26,7 +29,10 @@ export function discoverJsonPaths(value: unknown): JsonPathInfo[] {
     row.count += 1;
     row.types.add(type);
     if (
-      (typeof current === "string" || typeof current === "number" || typeof current === "boolean" || current === null) &&
+      (typeof current === "string" ||
+        typeof current === "number" ||
+        typeof current === "boolean" ||
+        current === null) &&
       row.samples.length < 5 &&
       !row.samples.includes(current)
     ) {
@@ -96,7 +102,10 @@ export function sampleJsonPath(value: unknown, path: string, limit = 5): unknown
 export function detectTimeLikePaths(paths: JsonPathInfo[]) {
   const matcher = /(time|timestamp|duration|start|end|ts)/i;
   return paths
-    .filter((row) => matcher.test(row.path) && row.types.some((type) => type === "number" || type === "string"))
+    .filter(
+      (row) =>
+        matcher.test(row.path) && row.types.some((type) => type === "number" || type === "string"),
+    )
     .map((row) => row.path);
 }
 
@@ -106,14 +115,20 @@ export function isLikelyBase64(value: string) {
 }
 
 function isLikelyByteArray(value: unknown) {
-  return Array.isArray(value) && value.length >= 8 && value.every((item) => Number.isInteger(item) && item >= 0 && item <= 255);
+  return (
+    Array.isArray(value) &&
+    value.length >= 8 &&
+    value.every((item) => Number.isInteger(item) && item >= 0 && item <= 255)
+  );
 }
 
 function looksLikeUtf8(bytes: Uint8Array) {
   try {
     const text = Buffer.from(bytes).toString("utf8");
     if (!text) return false;
-    const controlChars = [...text].filter((char) => char < " " && !["\n", "\r", "\t"].includes(char)).length;
+    const controlChars = [...text].filter(
+      (char) => char < " " && !["\n", "\r", "\t"].includes(char),
+    ).length;
     return controlChars <= Math.max(1, Math.floor(text.length * 0.02));
   } catch {
     return false;
@@ -122,15 +137,22 @@ function looksLikeUtf8(bytes: Uint8Array) {
 
 function sniffMediaType(bytes: Uint8Array) {
   const b = bytes;
-  if (b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image/png";
+  if (b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47)
+    return "image/png";
   if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
-  if (b.length >= 4 && b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return "image/gif";
-  if (b.length >= 4 && b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46) return "application/pdf";
-  if (b.length >= 4 && b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04) return "application/zip";
+  if (b.length >= 4 && b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38)
+    return "image/gif";
+  if (b.length >= 4 && b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46)
+    return "application/pdf";
+  if (b.length >= 4 && b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04)
+    return "application/zip";
   if (b.length >= 2 && b[0] === 0x1f && b[1] === 0x8b) return "application/gzip";
   if (looksLikeUtf8(bytes)) {
     const text = Buffer.from(bytes).toString("utf8").trim();
-    if ((text.startsWith("{") && text.endsWith("}")) || (text.startsWith("[") && text.endsWith("]"))) {
+    if (
+      (text.startsWith("{") && text.endsWith("}")) ||
+      (text.startsWith("[") && text.endsWith("]"))
+    ) {
       try {
         JSON.parse(text);
         return "application/json";
@@ -179,7 +201,10 @@ function buildCandidate(args: {
   const gunzipped = maybeGunzip(args.bytes);
   const finalBytes = gunzipped ?? args.bytes;
   const sniffed = sniffMediaType(finalBytes);
-  const mediaType = args.hintedMediaType && args.hintedMediaType !== "application/octet-stream" ? args.hintedMediaType : sniffed;
+  const mediaType =
+    args.hintedMediaType && args.hintedMediaType !== "application/octet-stream"
+      ? args.hintedMediaType
+      : sniffed;
   return {
     path: args.path,
     mediaType,
@@ -229,7 +254,11 @@ function fromWrapperObject(path: string, value: Record<string, unknown>) {
           containerKind: "wrapper-object",
         });
       }
-      if (encoding === "base64" || key.toLowerCase().includes("base64") || isLikelyBase64(current)) {
+      if (
+        encoding === "base64" ||
+        key.toLowerCase().includes("base64") ||
+        isLikelyBase64(current)
+      ) {
         return buildCandidate({
           path: `${path}.${key}`,
           bytes: Buffer.from(current, "base64"),
@@ -240,7 +269,10 @@ function fromWrapperObject(path: string, value: Record<string, unknown>) {
           containerKind: "wrapper-object",
         });
       }
-      if ((mediaType?.startsWith("text/") || mediaType === "application/json") && current.length > 0) {
+      if (
+        (mediaType?.startsWith("text/") || mediaType === "application/json") &&
+        current.length > 0
+      ) {
         return buildCandidate({
           path: `${path}.${key}`,
           bytes: Buffer.from(current, "utf8"),
@@ -293,7 +325,10 @@ export function findEmbeddedBlobs(value: unknown): EmbeddedBlobCandidate[] {
         );
         return;
       }
-      if (/(snapshot|base64|blob|image|payload|body|content)$/i.test(path) && isLikelyBase64(current)) {
+      if (
+        /(snapshot|base64|blob|image|payload|body|content)$/i.test(path) &&
+        isLikelyBase64(current)
+      ) {
         push(
           buildCandidate({
             path,

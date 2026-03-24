@@ -7,11 +7,13 @@ import type { LeaseInfo } from "../shared/types.js";
 import { WORKSPACE_LEASE_TTL_MS, WORKSPACE_ROOT } from "../shared/constants.js";
 
 function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80) || "item";
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "item"
+  );
 }
 
 function nowIso() {
@@ -76,7 +78,10 @@ export class WorkspaceManager {
 
   async allocScratchFile(purpose: string, ext = "") {
     const dir = await this.allocScratchDir(purpose);
-    const path = join(dir.path, `${slugify(purpose)}${ext.startsWith(".") || ext.length === 0 ? ext : `.${ext}`}`);
+    const path = join(
+      dir.path,
+      `${slugify(purpose)}${ext.startsWith(".") || ext.length === 0 ? ext : `.${ext}`}`,
+    );
     await writeFile(path, "");
     this.updateLeaseBytes(dir.leaseId, sizeIfExists(path));
     return { path, leaseId: dir.leaseId };

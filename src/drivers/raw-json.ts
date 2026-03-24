@@ -8,7 +8,14 @@ import {
   discoverJsonPaths,
   findEmbeddedBlobs,
 } from "../core/json-introspect.js";
-import type { ArtifactProvider, ReportProvider, SourceDetection, SourceDriver, SourceProbe, TableProvider } from "../core/types.js";
+import type {
+  ArtifactProvider,
+  ReportProvider,
+  SourceDetection,
+  SourceDriver,
+  SourceProbe,
+  TableProvider,
+} from "../core/types.js";
 import type { CapabilityMap, TableColumn } from "../shared/types.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -63,7 +70,13 @@ function normalizeRows(rows: unknown[]) {
 }
 
 function inferTables(payload: unknown) {
-  const tables: Array<{ name: string; path: string; description: string; rows: unknown[]; columns: TableColumn[] }> = [];
+  const tables: Array<{
+    name: string;
+    path: string;
+    description: string;
+    rows: unknown[];
+    columns: TableColumn[];
+  }> = [];
   const seen = new Set<string>();
 
   const visit = (current: unknown, path: string) => {
@@ -80,7 +93,10 @@ function inferTables(payload: unknown) {
       tables.push({
         name: finalName,
         path,
-        description: path === "$" ? "Top-level array inferred from the raw dataset" : `Inferred table from path '${path}'`,
+        description:
+          path === "$"
+            ? "Top-level array inferred from the raw dataset"
+            : `Inferred table from path '${path}'`,
         rows,
         columns: inferColumns(rows),
       });
@@ -122,7 +138,10 @@ class RawArtifactProvider implements ArtifactProvider {
   id = "raw-artifact-provider";
   private readonly embeddedBlobs: ReturnType<typeof buildEmbeddedBlobRows>;
 
-  constructor(private readonly payload: unknown, private readonly sourcePath: string) {
+  constructor(
+    private readonly payload: unknown,
+    private readonly sourcePath: string,
+  ) {
     this.embeddedBlobs = buildEmbeddedBlobRows(payload);
   }
 
@@ -136,7 +155,12 @@ class RawArtifactProvider implements ArtifactProvider {
       },
       ...this.embeddedBlobs.map((blob) => ({
         id: blob.artifactId,
-        kind: blob.decodedKind === "binary" ? ("binary" as const) : blob.decodedKind === "json" ? ("json" as const) : ("text" as const),
+        kind:
+          blob.decodedKind === "binary"
+            ? ("binary" as const)
+            : blob.decodedKind === "json"
+              ? ("json" as const)
+              : ("text" as const),
         mediaType: blob.mediaType,
         sizeBytes: blob.sizeBytes,
         filenameHint: blob.filename,
@@ -153,7 +177,9 @@ class RawArtifactProvider implements ArtifactProvider {
   }
 
   canHandle(artifactId: string) {
-    return artifactId === "artifact:raw:document" || artifactId.startsWith("artifact:raw:embedded:");
+    return (
+      artifactId === "artifact:raw:document" || artifactId.startsWith("artifact:raw:embedded:")
+    );
   }
 
   async get(_session: DatasetSession, artifactId: string) {
@@ -192,14 +218,24 @@ class RawArtifactProvider implements ArtifactProvider {
   }
 }
 
-function createRawSummaryReport(payload: unknown, inferredTables: ReturnType<typeof inferTables>, pathCatalog: ReturnType<typeof discoverJsonPaths>, timeFields: string[], embeddedBlobs: ReturnType<typeof buildEmbeddedBlobRows>): ReportProvider {
+function createRawSummaryReport(
+  payload: unknown,
+  inferredTables: ReturnType<typeof inferTables>,
+  pathCatalog: ReturnType<typeof discoverJsonPaths>,
+  timeFields: string[],
+  embeddedBlobs: ReturnType<typeof buildEmbeddedBlobRows>,
+): ReportProvider {
   return {
     name: "raw.summary",
     description: "Summary of inferred raw JSON structure",
     async run() {
       return {
         topLevelType: Array.isArray(payload) ? "array" : typeof payload,
-        inferredTables: inferredTables.map((table) => ({ name: table.name, rows: table.rows.length, path: table.path })),
+        inferredTables: inferredTables.map((table) => ({
+          name: table.name,
+          rows: table.rows.length,
+          path: table.path,
+        })),
         pathCount: pathCatalog.length,
         timeFields,
         embeddedBlobCount: embeddedBlobs.length,
@@ -301,7 +337,9 @@ export class RawJsonDriver implements SourceDriver {
       },
     });
 
-    session.registerReport(createRawSummaryReport(payload, inferredTables, pathCatalog, timeFields, embeddedBlobs));
+    session.registerReport(
+      createRawSummaryReport(payload, inferredTables, pathCatalog, timeFields, embeddedBlobs),
+    );
 
     session.registerArtifactProvider(new RawArtifactProvider(payload, sourcePath));
     session.registerCollection({

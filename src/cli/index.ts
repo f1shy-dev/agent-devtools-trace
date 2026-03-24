@@ -19,7 +19,10 @@ function parseOptionalNumber(value?: string) {
 }
 
 function parseSelect(value?: string) {
-  return value?.split(",").map((item) => item.trim()).filter(Boolean);
+  return value
+    ?.split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function parseWhere(value?: string) {
@@ -67,13 +70,21 @@ const main = defineCommand({
   meta: {
     name: "trace-server",
     version: "1.0.0",
-    description: "Runtime-first dataset kernel for DevTools traces and raw JSON. Query through ds, pretty(...), and table(...).",
+    description:
+      "Runtime-first dataset kernel for DevTools traces and raw JSON. Query through ds, pretty(...), and table(...).",
   },
   subCommands: {
     load: defineCommand({
-      meta: { name: "load", description: "Load a dataset file into the server and return its session id." },
+      meta: {
+        name: "load",
+        description: "Load a dataset file into the server and return its session id.",
+      },
       args: {
-        file: { type: "positional", required: true, description: "Path to a supported dataset file." },
+        file: {
+          type: "positional",
+          required: true,
+          description: "Path to a supported dataset file.",
+        },
         alias: { type: "string", description: "Optional human-friendly session alias." },
       },
       async run({ args }) {
@@ -120,7 +131,9 @@ const main = defineCommand({
     }),
     info: defineCommand({
       meta: { name: "info", description: "Show session metadata." },
-      args: { session: { type: "positional", required: true, description: "Session id or alias." } },
+      args: {
+        session: { type: "positional", required: true, description: "Session id or alias." },
+      },
       async run({ args }) {
         try {
           await ensureServer();
@@ -133,7 +146,9 @@ const main = defineCommand({
     }),
     caps: defineCommand({
       meta: { name: "caps", description: "Show detected dataset capabilities." },
-      args: { session: { type: "positional", required: true, description: "Session id or alias." } },
+      args: {
+        session: { type: "positional", required: true, description: "Session id or alias." },
+      },
       async run({ args }) {
         try {
           await ensureServer();
@@ -145,8 +160,13 @@ const main = defineCommand({
       },
     }),
     schema: defineCommand({
-      meta: { name: "schema", description: "Show the dataset schema registry (tables, reports, collections)." },
-      args: { session: { type: "positional", required: true, description: "Session id or alias." } },
+      meta: {
+        name: "schema",
+        description: "Show the dataset schema registry (tables, reports, collections).",
+      },
+      args: {
+        session: { type: "positional", required: true, description: "Session id or alias." },
+      },
       async run({ args }) {
         try {
           await ensureServer();
@@ -190,17 +210,32 @@ const main = defineCommand({
       },
     }),
     table: defineCommand({
-      meta: { name: "table", description: "Query one table. Defaults to deterministic table rendering; use --json for raw rows." },
+      meta: {
+        name: "table",
+        description:
+          "Query one table. Defaults to deterministic table rendering; use --json for raw rows.",
+      },
       args: {
         session: { type: "positional", required: true, description: "Session id or alias." },
-        table: { type: "positional", required: true, description: "Table name, e.g. devtools.views.codeHotspots." },
+        table: {
+          type: "positional",
+          required: true,
+          description: "Table name, e.g. devtools.views.codeHotspots.",
+        },
         limit: { type: "string", alias: "l", description: "Optional row limit." },
         select: { type: "string", description: "Comma-separated projection columns." },
         sort: { type: "string", description: "Sort column name." },
         desc: { type: "boolean", description: "Sort descending." },
         where: { type: "string", description: "Single filter in the form column:op:value." },
-        pretty: { type: "boolean", description: "Use adaptive pretty rendering instead of deterministic table rendering." },
-        tableFormat: { type: "boolean", alias: "T", description: "Explicitly request deterministic table rendering (the default)." },
+        pretty: {
+          type: "boolean",
+          description: "Use adaptive pretty rendering instead of deterministic table rendering.",
+        },
+        tableFormat: {
+          type: "boolean",
+          alias: "T",
+          description: "Explicitly request deterministic table rendering (the default).",
+        },
         json: { type: "boolean", description: "Return raw JSON rows instead of rendered output." },
       },
       async run({ args }) {
@@ -214,7 +249,8 @@ const main = defineCommand({
           if (select && select.length > 0) query.select = select;
           const where = parseWhere(args.where);
           if (where) query.where = [where];
-          if (args.sort) query.orderBy = [{ column: args.sort, direction: args.desc ? "desc" : "asc" }];
+          if (args.sort)
+            query.orderBy = [{ column: args.sort, direction: args.desc ? "desc" : "asc" }];
           if (!args.json) query.format = args.pretty ? "pretty" : "table";
           const payload = await client.table(args.session, args.table, query);
           printRenderedOrJson(payload);
@@ -252,13 +288,27 @@ const main = defineCommand({
       },
     }),
     report: defineCommand({
-      meta: { name: "report", description: "Run a named report. Defaults to readable pretty output; use --json for raw structured data." },
+      meta: {
+        name: "report",
+        description:
+          "Run a named report. Defaults to readable pretty output; use --json for raw structured data.",
+      },
       args: {
         session: { type: "positional", required: true, description: "Session id or alias." },
-        report: { type: "positional", required: true, description: "Report name, e.g. devtools.summary." },
+        report: {
+          type: "positional",
+          required: true,
+          description: "Report name, e.g. devtools.summary.",
+        },
         args: { type: "string", description: "Optional JSON object of report args." },
-        pretty: { type: "boolean", description: "Explicitly request readable rendering (the default)." },
-        json: { type: "boolean", description: "Return raw JSON instead of the report's readable rendering." },
+        pretty: {
+          type: "boolean",
+          description: "Explicitly request readable rendering (the default).",
+        },
+        json: {
+          type: "boolean",
+          description: "Return raw JSON instead of the report's readable rendering.",
+        },
       },
       async run({ args }) {
         try {
@@ -274,7 +324,10 @@ const main = defineCommand({
       },
     }),
     query: defineCommand({
-      meta: { name: "query", description: "Run JS/TS against the dataset runtime (ds, pretty, table)." },
+      meta: {
+        name: "query",
+        description: "Run JS/TS against the dataset runtime (ds, pretty, table).",
+      },
       args: {
         session: { type: "positional", required: true, description: "Session id or alias." },
         code: { type: "positional", required: true, description: "Inline JS/TS code to execute." },
@@ -284,7 +337,11 @@ const main = defineCommand({
         try {
           await ensureServer();
           const client = new TraceServerClient();
-          const result = await client.query(args.session, args.code, args.timeout ? Number.parseInt(args.timeout, 10) : undefined);
+          const result = await client.query(
+            args.session,
+            args.code,
+            args.timeout ? Number.parseInt(args.timeout, 10) : undefined,
+          );
           console.log(result.result);
           console.error(`(${result.duration}ms)`);
         } catch (error) {
@@ -294,7 +351,9 @@ const main = defineCommand({
     }),
     artifacts: defineCommand({
       meta: { name: "artifacts", description: "List dataset artifacts." },
-      args: { session: { type: "positional", required: true, description: "Session id or alias." } },
+      args: {
+        session: { type: "positional", required: true, description: "Session id or alias." },
+      },
       async run({ args }) {
         try {
           await ensureServer();
@@ -323,7 +382,9 @@ const main = defineCommand({
     }),
     collections: defineCommand({
       meta: { name: "collections", description: "List exportable file collections." },
-      args: { session: { type: "positional", required: true, description: "Session id or alias." } },
+      args: {
+        session: { type: "positional", required: true, description: "Session id or alias." },
+      },
       async run({ args }) {
         try {
           await ensureServer();
@@ -335,7 +396,10 @@ const main = defineCommand({
       },
     }),
     materialize: defineCommand({
-      meta: { name: "materialize", description: "Materialize one artifact into the managed workspace." },
+      meta: {
+        name: "materialize",
+        description: "Materialize one artifact into the managed workspace.",
+      },
       args: {
         session: { type: "positional", required: true, description: "Session id or alias." },
         artifact: { type: "positional", required: true, description: "Artifact id." },
@@ -351,7 +415,10 @@ const main = defineCommand({
       },
     }),
     export: defineCommand({
-      meta: { name: "export", description: "Export a file collection to disk in the managed workspace." },
+      meta: {
+        name: "export",
+        description: "Export a file collection to disk in the managed workspace.",
+      },
       args: {
         session: { type: "positional", required: true, description: "Session id or alias." },
         collection: { type: "positional", required: true, description: "Collection id." },
@@ -368,7 +435,9 @@ const main = defineCommand({
     }),
     layers: defineCommand({
       meta: { name: "layers", description: "Show layer build/cache status." },
-      args: { session: { type: "positional", required: true, description: "Session id or alias." } },
+      args: {
+        session: { type: "positional", required: true, description: "Session id or alias." },
+      },
       async run({ args }) {
         try {
           await ensureServer();
@@ -381,7 +450,9 @@ const main = defineCommand({
     }),
     leases: defineCommand({
       meta: { name: "leases", description: "Show workspace/export leases for a session." },
-      args: { session: { type: "positional", required: true, description: "Session id or alias." } },
+      args: {
+        session: { type: "positional", required: true, description: "Session id or alias." },
+      },
       async run({ args }) {
         try {
           await ensureServer();
@@ -394,7 +465,9 @@ const main = defineCommand({
     }),
     unload: defineCommand({
       meta: { name: "unload", description: "Unload one session and clean up its workspace." },
-      args: { session: { type: "positional", required: true, description: "Session id or alias." } },
+      args: {
+        session: { type: "positional", required: true, description: "Session id or alias." },
+      },
       async run({ args }) {
         try {
           await ensureServer();

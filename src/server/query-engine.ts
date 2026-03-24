@@ -125,14 +125,23 @@ function findLastExpressionStart(code: string): number | null {
     else if (char === "]") bracketDepth = Math.max(bracketDepth - 1, 0);
     else if (char === "{") braceDepth++;
     else if (char === "}") braceDepth = Math.max(braceDepth - 1, 0);
-    else if ((char === ";" || char === "\n") && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+    else if (
+      (char === ";" || char === "\n") &&
+      parenDepth === 0 &&
+      bracketDepth === 0 &&
+      braceDepth === 0
+    ) {
       lastBoundary = index + 1;
     }
   }
 
   const trailing = code.slice(lastBoundary).trim();
   if (!trailing) return null;
-  if (/^(return|throw|if|for|while|do|switch|try|class|function|async function|interface|type|enum|import|export)\b/.test(trailing)) {
+  if (
+    /^(return|throw|if|for|while|do|switch|try|class|function|async function|interface|type|enum|import|export)\b/.test(
+      trailing,
+    )
+  ) {
     return null;
   }
   if (trailing === "}" || trailing.endsWith("}")) return null;
@@ -152,7 +161,8 @@ function withAutoReturn(code: string): string | null {
 
 async function buildQueryScript(code: string, mode: "expression" | "auto-return" | "statements") {
   const statementCode = mode === "auto-return" ? withAutoReturn(code) : code;
-  if (mode === "auto-return" && statementCode === null) throw new Error("Unable to infer trailing expression");
+  if (mode === "auto-return" && statementCode === null)
+    throw new Error("Unable to infer trailing expression");
   const wrappedCode =
     mode === "expression"
       ? `(async () => { return (${code}); })()`
@@ -160,7 +170,11 @@ async function buildQueryScript(code: string, mode: "expression" | "auto-return"
   return new vm.Script(await transpile(wrappedCode));
 }
 
-export async function executeQuery(session: DatasetSession, code: string, timeout = DEFAULT_QUERY_TIMEOUT) {
+export async function executeQuery(
+  session: DatasetSession,
+  code: string,
+  timeout = DEFAULT_QUERY_TIMEOUT,
+) {
   let script: vm.Script;
   try {
     script = await buildQueryScript(code, "expression");
@@ -186,7 +200,8 @@ export async function executeQuery(session: DatasetSession, code: string, timeou
     const ds = session.createQueryApi({ signal: abort.signal });
     const context = {
       ds,
-      pretty: (value: unknown, options?: { maxRows?: number; mode?: "auto" | "table" }) => prettyValue(value, options),
+      pretty: (value: unknown, options?: { maxRows?: number; mode?: "auto" | "table" }) =>
+        prettyValue(value, options),
       table: (value: unknown, options?: { maxRows?: number }) => tableValue(value, options),
       console,
       performance,
@@ -203,7 +218,10 @@ export async function executeQuery(session: DatasetSession, code: string, timeou
     try {
       result = script.runInNewContext(context, { timeout });
     } catch (error) {
-      if (error instanceof Error && /Script execution timed out|timed out after/i.test(error.message)) {
+      if (
+        error instanceof Error &&
+        /Script execution timed out|timed out after/i.test(error.message)
+      ) {
         throw new QueryTimeoutError(timeout);
       }
       throw error;

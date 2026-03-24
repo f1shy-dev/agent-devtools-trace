@@ -26,10 +26,12 @@ function toRequest(req: import("http").IncomingMessage) {
       : (Readable.toWeb(req) as unknown as ReadableStream);
   return new Request(url, {
     method: req.method,
-    headers: new Headers(Object.entries(req.headers).flatMap(([key, value]) => {
-      if (Array.isArray(value)) return value.map((item) => [key, item] as [string, string]);
-      return value ? ([[key, value]] as [string, string][]) : [];
-    })),
+    headers: new Headers(
+      Object.entries(req.headers).flatMap(([key, value]) => {
+        if (Array.isArray(value)) return value.map((item) => [key, item] as [string, string]);
+        return value ? ([[key, value]] as [string, string][]) : [];
+      }),
+    ),
     body,
     duplex: "half",
   } as RequestInit & { duplex: "half" });

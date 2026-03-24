@@ -5,7 +5,8 @@ function formatScalar(value: unknown) {
   if (value === null) return "null";
   if (value === undefined) return "";
   if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") return String(value);
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint")
+    return String(value);
   if (value instanceof Date) return value.toISOString();
   return JSON.stringify(value);
 }
@@ -53,16 +54,26 @@ function cellValue(value: unknown) {
   if (value === null) return "null";
   if (value === undefined) return "";
   if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") return String(value);
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint")
+    return String(value);
   if (Array.isArray(value)) {
-    return value.every((item) => typeof item === "string" || typeof item === "number" || typeof item === "boolean" || item == null)
+    return value.every(
+      (item) =>
+        typeof item === "string" ||
+        typeof item === "number" ||
+        typeof item === "boolean" ||
+        item == null,
+    )
       ? value.map((item) => formatScalar(item)).join(", ")
       : JSON.stringify(value);
   }
   return JSON.stringify(value);
 }
 
-export function table(value: unknown, options?: { columns?: string[]; maxRows?: number; columnMeta?: TableColumn[] }) {
+export function table(
+  value: unknown,
+  options?: { columns?: string[]; maxRows?: number; columnMeta?: TableColumn[] },
+) {
   if (!Array.isArray(value)) {
     throw new Error("table(...) expects an array of row objects");
   }
@@ -88,7 +99,9 @@ export function table(value: unknown, options?: { columns?: string[]; maxRows?: 
   const limitedRows = maxRows ? rows.slice(0, maxRows) : rows;
   const rendered = renderTable([
     orderedColumns,
-    ...limitedRows.map((row) => orderedColumns.map((column) => cellValue((row as Record<string, unknown>)[column]))),
+    ...limitedRows.map((row) =>
+      orderedColumns.map((column) => cellValue((row as Record<string, unknown>)[column])),
+    ),
   ]);
   const suffix = maxRows && rows.length > maxRows ? `\n… ${rows.length - maxRows} more row(s)` : "";
   return `${rendered.join("\n")}${suffix}`;
@@ -126,7 +139,13 @@ function prettyArray(value: unknown[], options?: PrettyOptions, indent = "") {
 
 export function pretty(value: unknown, options?: PrettyOptions, indent = ""): string {
   if (typeof value === "string") return indent ? `${indent}${value}` : value;
-  if (value === null || value === undefined || typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
     return `${indent}${formatScalar(value)}`;
   }
   if (Array.isArray(value)) return prettyArray(value, options, indent);

@@ -74,14 +74,22 @@ export class DatasetSession implements DatasetSessionContract {
     this.rawDocumentProvider = args.rawDocument;
     this.capabilityProvider = args.capabilities;
     this.workspace = new WorkspaceManager("pending");
-    this.fileMaterializer = new FileMaterializer(this.workspace, this.artifactStore, this.collections);
+    this.fileMaterializer = new FileMaterializer(
+      this.workspace,
+      this.artifactStore,
+      this.collections,
+    );
   }
 
   setId(id: string) {
     this.manifest = { ...this.manifest, id };
     this.workspace.dispose();
     this.workspace = new WorkspaceManager(id);
-    this.fileMaterializer = new FileMaterializer(this.workspace, this.artifactStore, this.collections);
+    this.fileMaterializer = new FileMaterializer(
+      this.workspace,
+      this.artifactStore,
+      this.collections,
+    );
   }
 
   registerTable(provider: TableProvider) {
@@ -259,12 +267,18 @@ export class DatasetSession implements DatasetSessionContract {
       schema: {
         kind: async () => session.manifest.kind,
         namespaces: async () =>
-          [...new Set([...session.tables.keys(), ...session.reports.keys()].map(namespaceFromName))].sort(),
+          [
+            ...new Set(
+              [...session.tables.keys(), ...session.reports.keys()].map(namespaceFromName),
+            ),
+          ].sort(),
         tables: async () => session.listTables(),
         reports: async () => session.listReports(),
         collections: async () => session.listCollections(),
-        describeTable: async (name: string) => session.listTables().find((table) => table.name === name) ?? null,
-        describeReport: async (name: string) => session.listReports().find((report) => report.name === name) ?? null,
+        describeTable: async (name: string) =>
+          session.listTables().find((table) => table.name === name) ?? null,
+        describeReport: async (name: string) =>
+          session.listReports().find((report) => report.name === name) ?? null,
         paths: async () => session.schemaPaths(),
         samples: async (path: string) => session.schemaSamples(path),
       },
@@ -324,8 +338,10 @@ export class DatasetSession implements DatasetSessionContract {
       },
       files: {
         listCollections: async () => session.listCollections(),
-        materializeArtifact: async (artifactId, options) => session.materializeArtifact(artifactId, options),
-        exportCollection: async (collectionId, options) => session.exportCollection(collectionId, options),
+        materializeArtifact: async (artifactId, options) =>
+          session.materializeArtifact(artifactId, options),
+        exportCollection: async (collectionId, options) =>
+          session.exportCollection(collectionId, options),
         releaseLease: async (leaseId: string) => session.releaseLease(leaseId),
         pinLease: async (leaseId: string) => session.pinLease(leaseId),
         unpinLease: async (leaseId: string) => session.unpinLease(leaseId),

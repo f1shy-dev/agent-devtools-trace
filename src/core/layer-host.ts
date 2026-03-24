@@ -111,19 +111,21 @@ export class LayerHost {
   }
 
   status(): LayerStatusInfo[] {
-    return [...this.specs.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([key, spec]) => {
-      const state = this.states.get(key);
-      return {
-        key,
-        status: state?.status ?? "cold",
-        buildMs: state?.status === "ready" ? state.buildMs : undefined,
-        lastAccessedAt: state?.lastAccessedAt,
-        sizeBytes: state?.status === "ready" ? state.sizeBytes : undefined,
-        deps: spec.deps ?? [],
-        evictable: spec.evictable ?? true,
-        pinned: this.pinned.has(key),
-      } satisfies LayerStatusInfo;
-    });
+    return [...this.specs.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, spec]) => {
+        const state = this.states.get(key);
+        return {
+          key,
+          status: state?.status ?? "cold",
+          buildMs: state?.status === "ready" ? state.buildMs : undefined,
+          lastAccessedAt: state?.lastAccessedAt,
+          sizeBytes: state?.status === "ready" ? state.sizeBytes : undefined,
+          deps: spec.deps ?? [],
+          evictable: spec.evictable ?? true,
+          pinned: this.pinned.has(key),
+        } satisfies LayerStatusInfo;
+      });
   }
 
   evict(key: string) {

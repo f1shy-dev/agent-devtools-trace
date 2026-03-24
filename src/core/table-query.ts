@@ -78,7 +78,9 @@ export function applyTablePlan(rows: unknown[], plan?: TableQueryPlan) {
   if (normalized.where && normalized.where.length > 0) {
     next = next.filter((row) => {
       if (!row || typeof row !== "object") return false;
-      return normalized.where!.every((filter) => matchesFilter((row as Record<string, unknown>)[filter.column], filter));
+      return normalized.where!.every((filter) =>
+        matchesFilter((row as Record<string, unknown>)[filter.column], filter),
+      );
     });
   }
 
