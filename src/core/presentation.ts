@@ -80,8 +80,9 @@ export function table(value: unknown, options?: { columns?: string[]; maxRows?: 
   const orderedColumns =
     providedColumns && providedColumns.length > 0
       ? providedColumns
-      : options?.columnMeta?.map((column) => column.name).filter((name) => inferred.has(name)).concat([...inferred].filter((name) => !options?.columnMeta?.some((column) => column.name === name)))
-        ?? [...inferred];
+      : options?.columnMeta && options.columnMeta.length > 0
+        ? options.columnMeta.map((column) => column.name).filter((name) => inferred.has(name))
+        : [...inferred];
 
   const maxRows = options?.maxRows && options.maxRows > 0 ? options.maxRows : undefined;
   const limitedRows = maxRows ? rows.slice(0, maxRows) : rows;

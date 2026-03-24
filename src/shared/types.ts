@@ -136,13 +136,13 @@ export interface LayerStatusInfo {
 
 export interface TableRowsResponse {
   table: string;
-  rows: unknown[];
+  rows?: unknown[];
   rendered?: string;
 }
 
 export interface ReportResponse {
   report: string;
-  result: unknown;
+  result?: unknown;
   rendered?: string;
 }
 

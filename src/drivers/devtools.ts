@@ -819,42 +819,72 @@ function buildMainThreadTasks(trace: ParsedTrace) {
       .map(([threadKey]) => threadKey),
   );
   const facts = buildFacts(trace);
-  return trace.traceEvents
+  const factsByThread = new Map<string, any[]>();
+  for (const fact of facts) {
+    if (!rendererMainThreads.has(fact.threadKey)) continue;
+    if (!factsByThread.has(fact.threadKey)) factsByThread.set(fact.threadKey, []);
+    factsByThread.get(fact.threadKey)!.push(fact);
+  }
+  for (const threadFacts of factsByThread.values()) {
+    threadFacts.sort((a, b) => a.tsUs - b.tsUs || a.endUs - b.endUs);
+  }
+
+  const tasksByThread = new Map<string, Array<{ event: TraceEvent; index: number; start: number; end: number }>>();
+  trace.traceEvents
     .map((event, index) => ({ event, index }))
     .filter(({ event }) => event.ph === "X" && event.dur && event.dur > 0)
     .filter(({ event }) => rendererMainThreads.has(getThreadKey(event.pid, event.tid)))
     .filter(({ event }) => event.name === "RunTask" || event.name === "ThreadControllerImpl::RunTask")
-    .map(({ event, index }) => {
-      const start = event.ts;
-      const end = event.ts + (event.dur ?? 0);
-      const children = facts.filter(
-        (fact) =>
-          fact.threadKey === getThreadKey(event.pid, event.tid) &&
-          fact.eventId !== `evt:${index}` &&
-          fact.tsUs >= start &&
-          fact.endUs <= end,
-      );
-      const countByName = new Map<string, number>();
-      for (const child of children) {
-        countByName.set(child.name, (countByName.get(child.name) ?? 0) + 1);
+    .forEach(({ event, index }) => {
+      const threadKey = getThreadKey(event.pid, event.tid);
+      if (!tasksByThread.has(threadKey)) tasksByThread.set(threadKey, []);
+      tasksByThread.get(threadKey)!.push({
+        event,
+        index,
+        start: event.ts,
+        end: event.ts + (event.dur ?? 0),
+      });
+    });
+
+  const rows: any[] = [];
+  for (const [threadKey, tasks] of tasksByThread.entries()) {
+    const threadFacts = factsByThread.get(threadKey) ?? [];
+    tasks.sort((a, b) => a.start - b.start || a.end - b.end || a.index - b.index);
+    let cursor = 0;
+    for (const task of tasks) {
+      while (cursor < threadFacts.length && threadFacts[cursor]!.tsUs < task.start) {
+        cursor += 1;
       }
-      const rawEventIds = [`evt:${index}`, ...children.map((child) => child.eventId)];
-      return {
-        taskId: `task:${index}`,
-        eventId: `evt:${index}`,
-        threadKey: getThreadKey(event.pid, event.tid),
-        tsUs: start,
-        durationMs: (event.dur ?? 0) / 1000,
-        childEventCount: children.length,
+      const countByName = new Map<string, number>();
+      const rawEventIds = [`evt:${task.index}`];
+      let childEventCount = 0;
+      for (let factIndex = cursor; factIndex < threadFacts.length; factIndex += 1) {
+        const fact = threadFacts[factIndex]!;
+        if (fact.tsUs > task.end) break;
+        if (fact.eventId === `evt:${task.index}`) continue;
+        if (fact.tsUs < task.start || fact.endUs > task.end) continue;
+        childEventCount += 1;
+        countByName.set(fact.name, (countByName.get(fact.name) ?? 0) + 1);
+        rawEventIds.push(fact.eventId);
+      }
+      rows.push({
+        taskId: `task:${task.index}`,
+        eventId: `evt:${task.index}`,
+        threadKey,
+        tsUs: task.start,
+        durationMs: (task.event.dur ?? 0) / 1000,
+        childEventCount,
         functionCalls: countByName.get("FunctionCall") ?? 0,
         layouts: countByName.get("Layout") ?? 0,
         paints: countByName.get("Paint") ?? 0,
         renderMeasures: countByName.get("UserTiming::Measure") ?? 0,
         rawEventIds,
         provenance: { rawIds: rawEventIds, layer: "devtools/views.mainThreadTasks" },
-      };
-    })
-    .sort((a, b) => b.durationMs - a.durationMs || a.tsUs - b.tsUs);
+      });
+    }
+  }
+
+  return rows.sort((a, b) => b.durationMs - a.durationMs || a.tsUs - b.tsUs);
 }
 
 function buildCodeHotspots(trace: ParsedTrace) {

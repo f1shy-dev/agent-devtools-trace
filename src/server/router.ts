@@ -187,14 +187,21 @@ export async function handleRequest(req: Request): Promise<Response> {
     const table = session.getTable(decodedName);
     if (!table) return json({ error: `Table not found: ${tableName}` }, 404);
     const body = (await readJson(req).catch(() => ({}))) as Record<string, any>;
+    if (body.format === "table") {
+      const rendered = await session.prettyTable(decodedName, body, {
+        mode: "table",
+        maxRows: typeof body.maxRows === "number" ? body.maxRows : undefined,
+      });
+      return json({ table: table.name, rendered });
+    }
+    if (body.format === "pretty") {
+      const rendered = await session.prettyTable(decodedName, body, {
+        maxRows: typeof body.maxRows === "number" ? body.maxRows : undefined,
+      });
+      return json({ table: table.name, rendered });
+    }
     const rows = await session.queryTable(decodedName, body);
-    const rendered =
-      body.format === "table"
-        ? await session.prettyTable(decodedName, body, { mode: "table", maxRows: typeof body.maxRows === "number" ? body.maxRows : undefined })
-        : body.format === "pretty"
-          ? await session.prettyTable(decodedName, body, { maxRows: typeof body.maxRows === "number" ? body.maxRows : undefined })
-          : undefined;
-    return json({ table: table.name, rows, rendered });
+    return json({ table: table.name, rows });
   }
 
   const reportsMatch = pathname.match(/^\/sessions\/([^/]+)\/reports$/);
@@ -214,9 +221,12 @@ export async function handleRequest(req: Request): Promise<Response> {
     if (!report) return json({ error: `Report not found: ${reportName}` }, 404);
     const body = (await readJson(req).catch(() => ({}))) as Record<string, any>;
     const { format, ...reportArgs } = body;
+    if (format === "pretty") {
+      const rendered = await session.prettyReport(decodedName, reportArgs);
+      return json({ report: report.name, rendered });
+    }
     const result = await report.run(session, reportArgs);
-    const rendered = format === "pretty" ? await session.prettyReport(decodedName, reportArgs) : undefined;
-    return json({ report: report.name, result, rendered });
+    return json({ report: report.name, result });
   }
 
   const artifactsMatch = pathname.match(/^\/sessions\/([^/]+)\/artifacts$/);

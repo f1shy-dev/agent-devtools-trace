@@ -112,7 +112,7 @@ export class TraceServerClient {
   }
 
   table(id: string, table: string, query?: Record<string, unknown>) {
-    return this.request<{ table: string; rows: unknown[]; rendered?: string }>(
+    return this.request<{ table: string; rows?: unknown[]; rendered?: string }>(
       "POST",
       `/sessions/${id}/tables/${encodeURIComponent(table)}/query`,
       query ?? {},
@@ -125,7 +125,7 @@ export class TraceServerClient {
   }
 
   report(id: string, report: string, args?: Record<string, unknown>) {
-    return this.request<{ report: string; result: unknown; rendered?: string }>(
+    return this.request<{ report: string; result?: unknown; rendered?: string }>(
       "POST",
       `/sessions/${id}/reports/${encodeURIComponent(report)}`,
       args ?? {},
