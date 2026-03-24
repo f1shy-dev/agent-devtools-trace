@@ -48,6 +48,7 @@ function sampleTrace(): TracePayload {
     traceEvents: [
       { cat: "__metadata", name: "process_name", ph: "M", pid: 1, tid: 0, ts: 0, args: { name: "Renderer" } },
       { cat: "__metadata", name: "thread_name", ph: "M", pid: 1, tid: 1, ts: 0, args: { name: "CrRendererMain" } },
+      { cat: "__metadata", name: "thread_name", ph: "M", pid: 1, tid: 2, ts: 0, args: { name: "DedicatedWorker thread" } },
       {
         cat: "disabled-by-default-devtools.screenshot",
         name: "Screenshot",
@@ -80,7 +81,7 @@ function sampleTrace(): TracePayload {
         pid: 1,
         tid: 1,
         ts: 1020,
-        args: { data: { requestId: "req-1", url: "http://example.com/data.json", requestMethod: "GET" } },
+        args: { data: { requestId: "req-1", url: "http://example.com/data.json", requestMethod: "GET", frame: "frame-1" } },
       },
       {
         cat: "devtools.timeline",
@@ -103,12 +104,44 @@ function sampleTrace(): TracePayload {
       },
       {
         cat: "devtools.timeline",
+        name: "ResourceReceivedData",
+        ph: "I",
+        pid: 1,
+        tid: 1,
+        ts: 1045,
+        args: {
+          data: {
+            requestId: "req-1",
+            body: `data:application/json;base64,${Buffer.from(JSON.stringify({ ok: true })).toString("base64")}`,
+          },
+        },
+      },
+      {
+        cat: "cc",
+        name: "LayerTreeHostImpl::UpdateLayers",
+        ph: "I",
+        pid: 1,
+        tid: 1,
+        ts: 1080,
+        args: { data: { layerId: 7 } },
+      },
+      {
+        cat: "devtools.timeline",
         name: "ResourceFinish",
         ph: "I",
         pid: 1,
         tid: 1,
         ts: 1090,
         args: { data: { requestId: "req-1" } },
+      },
+      {
+        cat: "devtools.timeline",
+        name: "WorkerTask",
+        ph: "I",
+        pid: 1,
+        tid: 2,
+        ts: 1400,
+        args: { data: { workerId: 99, url: "http://example.com/worker.js" } },
       },
       {
         cat: "disabled-by-default-devtools.timeline",
@@ -144,7 +177,7 @@ function sampleTrace(): TracePayload {
         ph: "P",
         pid: 1,
         tid: 1,
-        ts: 1520,
+        ts: 2075,
         args: {
           data: {
             cpuProfile: {
@@ -305,7 +338,7 @@ function sampleTrace(): TracePayload {
         pid: 1,
         tid: 1,
         ts: 2100,
-        args: { frame_reporter: { state: "STATE_DROPPED", frame_sequence: 7, affects_smoothness: true, has_high_latency: true } },
+        args: { frame_reporter: { state: "STATE_DROPPED", frame_sequence: 7, affects_smoothness: true, has_high_latency: true, submit_to_present_ms: 8.5 } },
       },
       {
         cat: "devtools.timeline",
@@ -372,11 +405,17 @@ describe("dataset kernel e2e", () => {
     const schemaPayload = await parseJson(schemaResponse);
     expect(schemaPayload.kind).toBe("devtools");
     expect(schemaPayload.tables.some((table: any) => table.name === "devtools.dims.interactions")).toBe(true);
+    expect(schemaPayload.tables.some((table: any) => table.name === "devtools.dims.processes")).toBe(true);
+    expect(schemaPayload.tables.some((table: any) => table.name === "devtools.dims.frames")).toBe(true);
+    expect(schemaPayload.tables.some((table: any) => table.name === "devtools.facts.cpuSamples")).toBe(true);
     expect(schemaPayload.tables.some((table: any) => table.name === "devtools.views.framePipeline")).toBe(true);
     expect(schemaPayload.tables.some((table: any) => table.name === "devtools.views.codeHotspots")).toBe(true);
+    expect(schemaPayload.tables.some((table: any) => table.name === "devtools.views.cpuCallTrees")).toBe(true);
+    expect(schemaPayload.tables.some((table: any) => table.name === "devtools.views.networkWaterfall")).toBe(true);
     expect(schemaPayload.reports.some((report: any) => report.name === "devtools.interaction")).toBe(true);
     expect(schemaPayload.reports.some((report: any) => report.name === "devtools.script")).toBe(true);
     expect(schemaPayload.collections.some((collection: any) => collection.id === "devtools.screenshots")).toBe(true);
+    expect(schemaPayload.collections.some((collection: any) => collection.id === "devtools.network-bodies")).toBe(true);
 
     const schemaPathsResponse = await handleRequest(new Request(`http://trace-server/sessions/${sessionId}/schema/paths`));
     expect(schemaPathsResponse.status).toBe(200);
@@ -416,6 +455,17 @@ describe("dataset kernel e2e", () => {
     expect(reportPayload.result.droppedFrames).toBe(1);
     expect(reportPayload.result.layoutShifts).toHaveLength(1);
     expect(reportPayload.result.softNavigations).toHaveLength(1);
+    expect(reportPayload.result.cpuHotspots[0].functionName).toBe("renderApp");
+
+    const prettyReportResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/reports/${encodeURIComponent("devtools.interaction")}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: "4758", format: "pretty" }),
+      }),
+    );
+    const prettyReportPayload = await parseJson(prettyReportResponse);
+    expect(prettyReportPayload.rendered).toContain("interaction 4758 click");
 
     const framePipelineResponse = await handleRequest(
       new Request(`http://trace-server/sessions/${sessionId}/tables/${encodeURIComponent("devtools.views.framePipeline")}/query`, {
@@ -427,6 +477,17 @@ describe("dataset kernel e2e", () => {
     const framePipelinePayload = await parseJson(framePipelineResponse);
     expect(framePipelinePayload.rows[0].frameSequence).toBe("7");
     expect(framePipelinePayload.rows[0].screenshotArtifactId).toBe("artifact:devtools:screenshot:0");
+    expect(framePipelinePayload.rows[0].stageTimingsMs.submit_to_present_ms).toBe(8.5);
+
+    const waterfallResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/tables/${encodeURIComponent("devtools.views.networkWaterfall")}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderBy: [{ column: "durationMs", direction: "desc" }] }),
+      }),
+    );
+    const waterfallPayload = await parseJson(waterfallResponse);
+    expect(waterfallPayload.rows[0].requestId).toBe("req-1");
 
     const hotspotsResponse = await handleRequest(
       new Request(`http://trace-server/sessions/${sessionId}/reports/${encodeURIComponent("devtools.hotspots")}`, {
@@ -436,6 +497,26 @@ describe("dataset kernel e2e", () => {
     const hotspotsPayload = await parseJson(hotspotsResponse);
     expect(hotspotsPayload.result.codeHotspots[0].functionName).toBe("renderApp");
     expect(hotspotsPayload.result.cpuHotspots[0].functionName).toBe("renderApp");
+    expect(hotspotsPayload.result.cpuCallTrees[0].stackLabel).toContain("renderApp");
+
+    const cpuSamplesResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/tables/${encodeURIComponent("devtools.facts.cpuSamples")}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limit: 5 }),
+      }),
+    );
+    const cpuSamplesPayload = await parseJson(cpuSamplesResponse);
+    expect(cpuSamplesPayload.rows[0].functionName).toBe("renderApp");
+
+    const requestBodiesResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/tables/${encodeURIComponent("devtools.dims.requestBodies")}/query`, {
+        method: "POST",
+      }),
+    );
+    const requestBodiesPayload = await parseJson(requestBodiesResponse);
+    expect(requestBodiesPayload.rows[0].requestId).toBe("req-1");
+    expect(requestBodiesPayload.rows[0].mediaType).toBe("application/json");
   });
 
   it("supports querying through the ds runtime", async () => {
@@ -449,15 +530,31 @@ describe("dataset kernel e2e", () => {
         body: JSON.stringify({
           code: `
 const summary = await ds.reports.run('devtools.summary');
-const interactions = await (await ds.tables.get('devtools.dims.interactions')).rows();
-return { kind: await ds.schema.kind(), totalEvents: summary.totalEvents, interactionCount: interactions.length };
+const interactions = await ds.tables.get('devtools.dims.interactions').rows();
+const hotspotsTable = await ds.tables.get('devtools.views.codeHotspots').select(['functionName', 'totalDurationMs']).limit(1).table();
+const interactionPretty = await ds.reports.get('devtools.interaction').args({ id: '4758' }).pretty();
+return {
+  kind: await ds.schema.kind(),
+  totalEvents: summary.totalEvents,
+  interactionCount: interactions.length,
+  hotspotsTable,
+  interactionPretty,
+  genericPretty: pretty({ ok: true, rows: interactions.length }),
+};
 `,
         }),
       }),
     );
     expect(queryResponse.status).toBe(200);
     const queryPayload = await parseJson(queryResponse);
-    expect(JSON.parse(queryPayload.result)).toEqual({ kind: "devtools", totalEvents: 24, interactionCount: 1 });
+    expect(JSON.parse(queryPayload.result)).toEqual({
+      kind: "devtools",
+      totalEvents: 28,
+      interactionCount: 1,
+      hotspotsTable: expect.stringContaining("renderApp"),
+      interactionPretty: expect.stringContaining("interaction 4758 click"),
+      genericPretty: expect.stringContaining("ok"),
+    });
   });
 
   it("lists artifacts and materializes/exports files", async () => {
@@ -472,6 +569,7 @@ return { kind: await ds.schema.kind(), totalEvents: summary.totalEvents, interac
     expect(artifactIds).toContain("artifact:devtools:script:10");
     expect(artifactIds).toContain("artifact:code:sourcemap:0");
     expect(artifactIds).toContain("artifact:code:source:0:0");
+    expect(artifactIds).toContain("artifact:devtools:request-body:7:0");
 
     const artifactResponse = await handleRequest(
       new Request(`http://trace-server/sessions/${sessionId}/artifacts/${encodeURIComponent("artifact:devtools:script:10")}`),
@@ -484,9 +582,15 @@ return { kind: await ds.schema.kind(), totalEvents: summary.totalEvents, interac
     );
     expect(await artifactContentResponse.text()).toContain("inline source");
 
+    const requestBodyContentResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/artifacts/${encodeURIComponent("artifact:devtools:request-body:7:0")}/content`),
+    );
+    expect(await requestBodyContentResponse.text()).toContain('"ok": true');
+
     const layersResponse = await handleRequest(new Request(`http://trace-server/sessions/${sessionId}/layers`));
     const layersPayload = await parseJson(layersResponse);
     expect(layersPayload.layers.some((row: any) => row.key === "devtools/views.framePipeline")).toBe(true);
+    expect(layersPayload.layers.some((row: any) => row.key === "devtools/facts.cpuSamples")).toBe(true);
 
     const materializeResponse = await handleRequest(
       new Request(`http://trace-server/sessions/${sessionId}/artifacts/${encodeURIComponent("artifact:devtools:screenshot:0")}/materialize`, {
@@ -512,5 +616,39 @@ return { kind: await ds.schema.kind(), totalEvents: summary.totalEvents, interac
     expect(exportPayload.fileCount).toBe(1);
     const exportedSourcePath = join(exportPayload.path, manifest.items[0].relativePath);
     expect(readFileSync(exportedSourcePath, "utf8")).toContain("export const value = 42");
+
+    const leasesResponse = await handleRequest(new Request(`http://trace-server/sessions/${sessionId}/files/leases`));
+    const leasesPayload = await parseJson(leasesResponse);
+    expect(leasesPayload.leases.some((lease: any) => lease.leaseId === materializePayload.leaseId)).toBe(true);
+
+    const pinLeaseResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/files/leases/${encodeURIComponent(materializePayload.leaseId)}/pin`, { method: "POST" }),
+    );
+    expect((await parseJson(pinLeaseResponse)).lease.pinned).toBe(true);
+
+    const releasePinnedResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/files/leases/${encodeURIComponent(materializePayload.leaseId)}/release`, { method: "POST" }),
+    );
+    expect((await parseJson(releasePinnedResponse)).ok).toBe(false);
+
+    const unpinLeaseResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/files/leases/${encodeURIComponent(materializePayload.leaseId)}/unpin`, { method: "POST" }),
+    );
+    expect((await parseJson(unpinLeaseResponse)).lease.pinned).toBe(false);
+
+    const releaseLeaseResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/files/leases/${encodeURIComponent(materializePayload.leaseId)}/release`, { method: "POST" }),
+    );
+    expect((await parseJson(releaseLeaseResponse)).ok).toBe(true);
+
+    const pinLayerResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/layers/${encodeURIComponent("devtools/views.framePipeline")}/pin`, { method: "POST" }),
+    );
+    expect((await parseJson(pinLayerResponse)).layer.pinned).toBe(true);
+
+    const evictPinnedLayerResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/layers/${encodeURIComponent("devtools/views.framePipeline")}/evict`, { method: "POST" }),
+    );
+    expect((await parseJson(evictPinnedLayerResponse)).ok).toBe(false);
   });
 });

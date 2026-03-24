@@ -111,14 +111,39 @@ export interface MaterializedDirectory {
   leaseId: string;
 }
 
+export interface LeaseInfo {
+  leaseId: string;
+  kind: "scratch" | "export";
+  purpose: string;
+  path: string;
+  createdAt: string;
+  pinned: boolean;
+  status: "active" | "released";
+  bytes?: number;
+  expiresAt?: string;
+}
+
+export interface LayerStatusInfo {
+  key: string;
+  status: string;
+  buildMs?: number;
+  lastAccessedAt?: string;
+  sizeBytes?: number;
+  deps?: string[];
+  evictable: boolean;
+  pinned: boolean;
+}
+
 export interface TableRowsResponse {
   table: string;
   rows: unknown[];
+  rendered?: string;
 }
 
 export interface ReportResponse {
   report: string;
   result: unknown;
+  rendered?: string;
 }
 
 export interface StopServerResponse {

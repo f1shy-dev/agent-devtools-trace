@@ -111,11 +111,11 @@ export class TraceServerClient {
     return result.tables;
   }
 
-  table(id: string, table: string, limit?: number) {
-    return this.request<{ table: string; rows: unknown[] }>(
+  table(id: string, table: string, query?: Record<string, unknown>) {
+    return this.request<{ table: string; rows: unknown[]; rendered?: string }>(
       "POST",
       `/sessions/${id}/tables/${encodeURIComponent(table)}/query`,
-      limit ? { limit } : {},
+      query ?? {},
     );
   }
 
@@ -125,7 +125,7 @@ export class TraceServerClient {
   }
 
   report(id: string, report: string, args?: Record<string, unknown>) {
-    return this.request<{ report: string; result: unknown }>(
+    return this.request<{ report: string; result: unknown; rendered?: string }>(
       "POST",
       `/sessions/${id}/reports/${encodeURIComponent(report)}`,
       args ?? {},
@@ -158,6 +158,18 @@ export class TraceServerClient {
     return result.layers;
   }
 
+  pinLayer(id: string, layerKey: string) {
+    return this.request<{ layer: unknown }>("POST", `/sessions/${id}/layers/${encodeURIComponent(layerKey)}/pin`);
+  }
+
+  unpinLayer(id: string, layerKey: string) {
+    return this.request<{ layer: unknown }>("POST", `/sessions/${id}/layers/${encodeURIComponent(layerKey)}/unpin`);
+  }
+
+  evictLayer(id: string, layerKey: string) {
+    return this.request<{ ok: boolean; key: string }>("POST", `/sessions/${id}/layers/${encodeURIComponent(layerKey)}/evict`);
+  }
+
   async collections(id: string) {
     const result = await this.request<{ collections: FileCollectionInfo[] }>(
       "GET",
@@ -172,6 +184,22 @@ export class TraceServerClient {
       `/sessions/${id}/files/collections/${encodeURIComponent(collectionId)}/export`,
       options ?? {},
     );
+  }
+
+  leases(id: string) {
+    return this.request<{ leases: unknown[] }>("GET", `/sessions/${id}/files/leases`);
+  }
+
+  pinLease(id: string, leaseId: string) {
+    return this.request<{ lease: unknown }>("POST", `/sessions/${id}/files/leases/${encodeURIComponent(leaseId)}/pin`);
+  }
+
+  unpinLease(id: string, leaseId: string) {
+    return this.request<{ lease: unknown }>("POST", `/sessions/${id}/files/leases/${encodeURIComponent(leaseId)}/unpin`);
+  }
+
+  releaseLease(id: string, leaseId: string) {
+    return this.request<{ ok: boolean; leaseId: string }>("POST", `/sessions/${id}/files/leases/${encodeURIComponent(leaseId)}/release`);
   }
 
   stopServer() {

@@ -89,6 +89,7 @@ async function materializeData(
     mediaType: artifact.mediaType,
     path: fileName,
   });
+  workspace.updateLeaseBytes(dir.leaseId, artifact.sizeBytes);
 
   return {
     kind: "file",
@@ -156,7 +157,7 @@ export class FileMaterializer {
       const targetPath = join(dir.path, item.relativePath);
       mkdirSync(dirname(targetPath), { recursive: true });
       writeFileSync(targetPath, bufferFromArtifactData(data));
-      manifestItems.push({ ...item, mediaType: artifact.mediaType });
+      manifestItems.push({ ...item, mediaType: artifact.mediaType, sizeBytes: artifact.sizeBytes } as FileCollectionItem & { mediaType?: string; sizeBytes?: number });
     }
 
     const manifestPath = this.workspace.writeManifest(dir.path, {
@@ -164,6 +165,8 @@ export class FileMaterializer {
       collectionId,
       items: manifestItems,
     });
+    const totalBytes = manifestItems.reduce((sum, item) => sum + Number((item as any).sizeBytes ?? 0), 0);
+    this.workspace.updateLeaseBytes(dir.leaseId, totalBytes || undefined);
 
     return {
       kind: "directory",

@@ -1,10 +1,20 @@
 import type { DatasetSession, LayerContext, LayerSpec } from "./types.js";
+import type { LayerStatusInfo } from "../shared/types.js";
+
+function estimateSizeBytes(value: unknown) {
+  try {
+    return Buffer.byteLength(JSON.stringify(value));
+  } catch {
+    return undefined;
+  }
+}
 
 type ReadyState = {
   status: "ready";
   value: unknown;
   buildMs?: number;
   lastAccessedAt: string;
+  sizeBytes?: number;
 };
 
 type BuildingState = {
@@ -25,6 +35,7 @@ type LayerState = ReadyState | BuildingState | FailedState;
 export class LayerHost {
   private readonly specs = new Map<string, LayerSpec>();
   private readonly states = new Map<string, LayerState>();
+  private readonly pinned = new Set<string>();
 
   constructor(private readonly session: DatasetSession) {}
 
@@ -86,6 +97,7 @@ export class LayerHost {
         value,
         buildMs: Date.now() - started,
         lastAccessedAt: new Date().toISOString(),
+        sizeBytes: estimateSizeBytes(value),
       });
       return value;
     } catch (error) {
@@ -98,15 +110,42 @@ export class LayerHost {
     }
   }
 
-  status() {
-    return [...this.specs.keys()].sort().map((key) => {
+  status(): LayerStatusInfo[] {
+    return [...this.specs.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([key, spec]) => {
       const state = this.states.get(key);
       return {
         key,
         status: state?.status ?? "cold",
         buildMs: state?.status === "ready" ? state.buildMs : undefined,
         lastAccessedAt: state?.lastAccessedAt,
-      };
+        sizeBytes: state?.status === "ready" ? state.sizeBytes : undefined,
+        deps: spec.deps ?? [],
+        evictable: spec.evictable ?? true,
+        pinned: this.pinned.has(key),
+      } satisfies LayerStatusInfo;
     });
+  }
+
+  evict(key: string) {
+    const spec = this.specs.get(key);
+    if (!spec) return false;
+    if (this.pinned.has(key)) return false;
+    if ((spec.evictable ?? true) === false) return false;
+    const state = this.states.get(key);
+    if (!state || state.status === "building") return false;
+    this.states.delete(key);
+    return true;
+  }
+
+  pin(key: string) {
+    if (!this.specs.has(key)) return null;
+    this.pinned.add(key);
+    return this.status().find((row) => row.key === key) ?? null;
+  }
+
+  unpin(key: string) {
+    if (!this.specs.has(key)) return null;
+    this.pinned.delete(key);
+    return this.status().find((row) => row.key === key) ?? null;
   }
 }

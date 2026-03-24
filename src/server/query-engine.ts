@@ -2,6 +2,7 @@ import vm from "node:vm";
 import { transform } from "esbuild";
 import ts from "typescript";
 import { DEFAULT_QUERY_TIMEOUT, MAX_RESULT_SIZE } from "../shared/constants.js";
+import { pretty as prettyValue, table as tableValue } from "../core/presentation.js";
 import type { DatasetSession } from "../core/types.js";
 
 export class QueryTimeoutError extends Error {
@@ -34,10 +35,14 @@ async function transpile(source: string): Promise<string> {
 
 export function serializeResult(result: any): { serialized: string; truncated: boolean } {
   let str: string;
-  try {
-    str = JSON.stringify(result, null, 2);
-  } catch {
-    str = String(result);
+  if (typeof result === "string") {
+    str = result;
+  } else {
+    try {
+      str = JSON.stringify(result, null, 2);
+    } catch {
+      str = String(result);
+    }
   }
   if (typeof str !== "string") str = "null";
   if (str.length > MAX_RESULT_SIZE) {
@@ -181,6 +186,8 @@ export async function executeQuery(session: DatasetSession, code: string, timeou
     const ds = session.createQueryApi({ signal: abort.signal });
     const context = {
       ds,
+      pretty: (value: unknown, options?: { maxRows?: number; mode?: "auto" | "table" }) => prettyValue(value, options),
+      table: (value: unknown, options?: { maxRows?: number }) => tableValue(value, options),
       console,
       performance,
       Buffer,

@@ -4,6 +4,10 @@ import type {
   DatasetManifest,
   FileCollectionInfo,
   JsonValue,
+  LayerStatusInfo,
+  LeaseInfo,
+  MaterializedDirectory,
+  MaterializedFile,
   ReportInfo,
   TableColumn,
   TableInfo,
@@ -26,8 +30,48 @@ export interface SourceDriver {
   open(sourcePath: string, detection: SourceDetection): Promise<DatasetSession>;
 }
 
-export interface TableQueryOptions {
+export type TableFilterOp =
+  | "="
+  | "!="
+  | "in"
+  | "contains"
+  | "startsWith"
+  | "endsWith"
+  | ">"
+  | ">="
+  | "<"
+  | "<="
+  | "between";
+
+export interface TableFilter {
+  column: string;
+  op: TableFilterOp;
+  value?: unknown;
+  values?: unknown[];
+  lower?: unknown;
+  upper?: unknown;
+}
+
+export interface TableSort {
+  column: string;
+  direction?: "asc" | "desc";
+}
+
+export interface TableQueryPlan {
+  select?: string[];
+  where?: TableFilter[];
+  orderBy?: TableSort[];
+  offset?: number;
   limit?: number;
+}
+
+export interface TableQueryOptions extends TableQueryPlan {
+  limit?: number;
+}
+
+export interface PrettyOptions {
+  maxRows?: number;
+  mode?: "auto" | "table";
 }
 
 export interface QueryRuntimeOptions {
@@ -44,6 +88,7 @@ export interface LayerSpec<T = unknown> {
   key: string;
   deps?: string[];
   weight?: "light" | "heavy";
+  evictable?: boolean;
   build(ctx: LayerContext): Promise<T>;
 }
 
@@ -52,12 +97,16 @@ export interface TableProvider {
   description: string;
   columns: TableColumn[];
   rows(session: DatasetSession, options?: TableQueryOptions): Promise<unknown[]>;
+  query?(session: DatasetSession, plan?: TableQueryPlan): Promise<unknown[]>;
+  count?(session: DatasetSession, plan?: TableQueryPlan): Promise<number>;
+  pretty?(session: DatasetSession, plan?: TableQueryPlan): Promise<string>;
 }
 
 export interface ReportProvider {
   name: string;
   description: string;
   run(session: DatasetSession, args?: Record<string, unknown>): Promise<unknown>;
+  pretty?(session: DatasetSession, args?: Record<string, unknown>): Promise<string>;
 }
 
 export interface ArtifactData {
@@ -91,6 +140,28 @@ export interface FileCollectionProvider {
   ): Promise<FileCollectionItem[]>;
 }
 
+export interface TableQueryHandle {
+  rows(plan?: TableQueryPlan): Promise<unknown[]>;
+  first(): Promise<unknown | null>;
+  count(): Promise<number>;
+  query(plan: TableQueryPlan): TableQueryHandle;
+  select(columns: string[]): TableQueryHandle;
+  where(filter: TableFilter): TableQueryHandle;
+  where(column: string, op: TableFilterOp, value: unknown): TableQueryHandle;
+  orderBy(column: string, direction?: "asc" | "desc"): TableQueryHandle;
+  limit(limit: number): TableQueryHandle;
+  offset(offset: number): TableQueryHandle;
+  pretty(options?: PrettyOptions): Promise<string>;
+  table(options?: PrettyOptions): Promise<string>;
+  plan(): TableQueryPlan;
+}
+
+export interface ReportQueryHandle {
+  args(args: Record<string, unknown>): ReportQueryHandle;
+  run(args?: Record<string, unknown>): Promise<unknown>;
+  pretty(args?: Record<string, unknown>): Promise<string>;
+}
+
 export interface DatasetQueryApi {
   caps: {
     all(): Promise<CapabilityMap>;
@@ -112,15 +183,12 @@ export interface DatasetQueryApi {
   };
   tables: {
     names(): Promise<string[]>;
-    get(name: string): Promise<{
-      rows(options?: TableQueryOptions): Promise<unknown[]>;
-      first(): Promise<unknown | null>;
-      count(): Promise<number>;
-    }>;
+    get(name: string): TableQueryHandle;
   };
   reports: {
     names(): Promise<string[]>;
     run(name: string, args?: Record<string, unknown>): Promise<unknown>;
+    get(name: string): ReportQueryHandle;
   };
   artifacts: {
     list(): Promise<ArtifactRef[]>;
@@ -134,25 +202,29 @@ export interface DatasetQueryApi {
     materializeArtifact(
       artifactId: string,
       options?: Record<string, unknown>,
-    ): Promise<{ kind: "file"; path: string; artifactId: string; bytes?: number; leaseId: string }>;
+    ): Promise<MaterializedFile>;
     exportCollection(
       collectionId: string,
       options?: Record<string, unknown>,
-    ): Promise<{
-      kind: "directory";
-      path: string;
-      manifestPath: string;
-      collectionId: string;
-      fileCount: number;
-      leaseId: string;
-    }>;
+    ): Promise<MaterializedDirectory>;
+    releaseLease(leaseId: string): Promise<{ ok: boolean; leaseId: string }>;
+    pinLease(leaseId: string): Promise<LeaseInfo | null>;
+    unpinLease(leaseId: string): Promise<LeaseInfo | null>;
+    leases(): Promise<LeaseInfo[]>;
   };
   workspace: {
     root(): Promise<string>;
     allocScratchDir(purpose: string): Promise<{ path: string; leaseId: string }>;
+    releaseLease(leaseId: string): Promise<{ ok: boolean; leaseId: string }>;
+    pinLease(leaseId: string): Promise<LeaseInfo | null>;
+    unpinLease(leaseId: string): Promise<LeaseInfo | null>;
+    leases(): Promise<LeaseInfo[]>;
   };
   layers: {
-    status(): Promise<Array<{ key: string; status: string; buildMs?: number; lastAccessedAt?: string }>>;
+    status(): Promise<LayerStatusInfo[]>;
+    evict(key: string): Promise<{ ok: boolean; key: string }>;
+    pin(key: string): Promise<LayerStatusInfo | null>;
+    unpin(key: string): Promise<LayerStatusInfo | null>;
   };
   ns: Record<string, unknown>;
 }
@@ -164,7 +236,10 @@ export interface DatasetSession {
   layers: {
     register<T>(spec: LayerSpec<T>): void;
     get<T>(key: string, signal?: AbortSignal): Promise<T>;
-    status(): Array<{ key: string; status: string; buildMs?: number; lastAccessedAt?: string }>;
+    status(): LayerStatusInfo[];
+    evict(key: string): boolean;
+    pin(key: string): LayerStatusInfo | null;
+    unpin(key: string): LayerStatusInfo | null;
   };
   setId(id: string): void;
   getCapabilityMap(): Promise<CapabilityMap>;
@@ -177,6 +252,10 @@ export interface DatasetSession {
   rawRows(name: string): Promise<unknown[]>;
   schemaPaths(): Promise<Array<{ path: string; count: number; types: string[]; samples: Array<string | number | boolean | null> }>>;
   schemaSamples(path: string): Promise<unknown[]>;
+  queryTable(name: string, plan?: TableQueryPlan): Promise<unknown[]>;
+  countTable(name: string, plan?: TableQueryPlan): Promise<number>;
+  prettyTable(name: string, plan?: TableQueryPlan, options?: PrettyOptions): Promise<string>;
+  prettyReport(name: string, args?: Record<string, unknown>): Promise<string>;
   createQueryApi(options?: QueryRuntimeOptions): DatasetQueryApi;
   listArtifacts(): Promise<ArtifactRef[]>;
   getArtifact(id: string): Promise<ArtifactRef | null>;
@@ -184,18 +263,18 @@ export interface DatasetSession {
   materializeArtifact(
     artifactId: string,
     options?: Record<string, unknown>,
-  ): Promise<{ kind: "file"; path: string; artifactId: string; bytes?: number; leaseId: string }>;
+  ): Promise<MaterializedFile>;
   exportCollection(
     collectionId: string,
     options?: Record<string, unknown>,
-  ): Promise<{
-    kind: "directory";
-    path: string;
-    manifestPath: string;
-    collectionId: string;
-    fileCount: number;
-    leaseId: string;
-  }>;
-  layerStatus(): Promise<Array<{ key: string; status: string; buildMs?: number; lastAccessedAt?: string }>>;
+  ): Promise<MaterializedDirectory>;
+  releaseLease(leaseId: string): Promise<{ ok: boolean; leaseId: string }>;
+  pinLease(leaseId: string): Promise<LeaseInfo | null>;
+  unpinLease(leaseId: string): Promise<LeaseInfo | null>;
+  listLeases(): Promise<LeaseInfo[]>;
+  layerStatus(): Promise<LayerStatusInfo[]>;
+  evictLayer(key: string): Promise<{ ok: boolean; key: string }>;
+  pinLayer(key: string): Promise<LayerStatusInfo | null>;
+  unpinLayer(key: string): Promise<LayerStatusInfo | null>;
   dispose(): Promise<void>;
 }

@@ -690,13 +690,87 @@ The current `buildQueryContext()` approach should be removed.
 The VM context should contain:
 - `ds`
 - safe utilities like `console`, `performance`, timers, `URL`, `TextEncoder`, etc.
+- lightweight presentation helpers like `pretty(...)` and `table(...)`
 
 The dataset itself should be accessed through `ds`, not flattened globals.
+Generic formatting helpers are query-runtime utilities, not dataset namespaces.
 
 ### 13.5 Table/query ergonomics
 The first implementation may use JS-driven table operations, but the API should be shaped so pushdown is possible later.
 
 We should avoid committing to “always return giant arrays” as the only model.
+
+If possible, registry lookups like `ds.tables.get(name)` and `ds.reports.get(name)` should be cheap and chainable. Expensive or async work should happen at evaluation points like `rows()`, `count()`, `run()`, `pretty()`, and `table()`.
+
+A useful target shape is:
+
+```ts
+const rows = await ds.tables
+  .get("devtools.views.codeHotspots")
+  .select(["functionName", "totalDurationMs"])
+  .orderBy("totalDurationMs", "desc")
+  .limit(20)
+  .rows()
+```
+
+and:
+
+```ts
+const report = await ds.reports
+  .get("devtools.interaction")
+  .args({ id: "4758" })
+  .run()
+```
+
+### 13.6 Pushdown-ready query plan
+The runtime should support a formal table query plan that can be shared across:
+- `ds.tables`
+- generic HTTP table-query routes
+- table-aware renderers
+
+An initial plan shape can support:
+- `select`
+- `where`
+- `orderBy`
+- `offset`
+- `limit`
+- filtered `count`
+
+The first implementation may execute these plans in JS over realized rows, but table providers should be able to optionally implement direct execution later.
+
+### 13.7 Presentation / readable output model
+Structured data is the canonical result model.
+
+However, agent workflows also need token-efficient readable output. The runtime should therefore support three complementary modes:
+1. structured results for composition
+2. built-in readable rendering via `pretty(...)`
+3. deterministic tabular rendering via `table(...)`
+
+Important rules:
+- `pretty(...)` should be compact and adaptive
+- `table(...)` should be explicit and deterministic for rectangular row data
+- manual string building inside queries is a first-class workflow, not a hack
+- table/report handles may expose `.pretty()` and `.table()` helpers where that is natural
+- plain returned objects and arrays must remain plain objects and arrays
+- the system must not patch global JS prototypes or attach methods to arbitrary returned values
+
+Representative examples:
+
+```ts
+await ds.reports.get("devtools.interaction").args({ id: "4758" }).pretty()
+```
+
+```ts
+await ds.tables.get("devtools.views.codeHotspots").limit(10).table()
+```
+
+```ts
+const summary = await ds.reports.run("devtools.interaction", { id: "4758" })
+return [
+  `interaction ${summary.interaction.interactionId} ${summary.interaction.totalLatencyMs}ms`,
+  `dropped ${summary.droppedFrames} frames`,
+].join("\n")
+```
 
 ---
 
@@ -779,7 +853,23 @@ Provenance is required across the system.
 - agent auditability
 - report explainability
 
-### 16.3 Rule
+### 16.3 Normalized provenance shape
+The system should converge on a normalized provenance contract rather than ad hoc per-table fields.
+
+A representative shape may include:
+- `rawIds: string[]`
+- `artifactIds?: string[]`
+- `layer: string`
+- `notes?: string[]`
+
+Not every output must use these exact field names forever, but the semantics should be stable and easy for agents to recognize.
+
+### 16.4 Coverage rules
+- major rows in `dims.*` and `views.*` should either carry provenance directly or expose an obvious provenance field
+- report outputs should include provenance-rich subobjects or a dedicated provenance section where appropriate
+- aggregates may summarize provenance rather than enumerate every raw input, but they must still remain auditable
+
+### 16.5 Rule
 No major derived semantic object should be impossible to trace back to its raw origin.
 
 ---
@@ -917,6 +1007,16 @@ Examples:
 ### 20.4 Manifest rule
 Every exported directory should include a manifest mapping files back to artifacts and dataset metadata.
 
+### 20.5 Lease and export lifecycle
+File materialization should not be treated as fire-and-forget forever.
+
+The system should support:
+- lease IDs for materialized files/directories
+- pin/release semantics
+- export cleanup policies
+- quota-aware export behavior
+- enough metadata to explain why an export still exists or was cleaned up
+
 ---
 
 ## 21. Workspace Management
@@ -943,6 +1043,16 @@ Workspace is the managed temp/scratch/export environment.
 - no path traversal
 - read-only exports by default where appropriate
 - managed cleanup
+
+### 21.5 Lifecycle policy
+Before moving on to later domains like OTEL, the workspace/artifact subsystem should have a real lifecycle model for:
+- scratch cleanup
+- export TTL and/or quota enforcement
+- lease release
+- pinned vs evictable outputs
+- operator-visible status for active workspace usage
+
+A global CAS can still remain future work, but per-session lifecycle behavior should be real rather than aspirational.
 
 ---
 
@@ -1124,6 +1234,37 @@ Desired support:
 - relation to interaction windows
 - soft navigation contexts and task IDs
 
+### 24.7 CPU profiles and main-thread execution
+Desired support:
+- decode `ProfileChunk` data into normalized CPU sample facts
+- canonical CPU node/frame dimensions
+- self time vs total time semantics
+- call-tree / folded-stack style derived views
+- timeline buckets for hot code over time
+- interaction-scoped and task-scoped CPU hotspot views
+- source-backed attribution tied to scripts/source maps/sources when possible
+
+### 24.8 Remaining facts, indexes, and dimensions
+Desired support:
+- explicit instant-event, slice-event, and async/flow fact coverage
+- reusable indexes by common keys like request/script/interaction/frame/url
+- process/frame/worker/layer dimensions where the trace supports them
+- better first-class task entities instead of only task-like derived rows
+
+### 24.9 Network bodies and exports
+Desired support:
+- request/response body artifacts when the trace contains them
+- `devtools.network-bodies` as an exportable collection
+- linkage from requests to exported bodies and related screenshots/interactions where useful
+
+### 24.10 Presentation and completion expectations
+Desired support:
+- built-in readable rendering for the major DevTools reports
+- compact tables for the major DevTools dimensions/views
+- coherent provenance across facts/dimensions/views/reports
+
+DevTools should only be considered “complete” for this spec when the raw/facts/indexes/dimensions/views/reports/artifacts stack is strong enough to support rich investigations without forcing the agent to reconstruct core semantic joins from scratch.
+
 ---
 
 ## 25. Cross-Domain Design: OTEL, Sentry, Bundle, Raw
@@ -1179,6 +1320,30 @@ Desired support:
 - time field detection
 - extractable embedded blobs
 - generic exports
+
+### 25.4.1 Raw schema/catalog depth
+Desired support:
+- nested-array inferred tables, not just top-level array discovery
+- path-based naming that stays understandable and stable
+- richer type summaries and path statistics where feasible
+- sane sampling/truncation behavior for very large raw documents
+
+### 25.4.2 Embedded blob heuristics
+Desired support:
+- data URLs
+- wrapper objects like `{ data, mimeType }` or `{ body, encoding: "base64" }`
+- byte-array blobs
+- base64/gzip-wrapped text or JSON payloads
+- media sniffing from obvious magic bytes
+- confidence scoring and filename/media-type hints
+
+### 25.4.3 Raw presentation and completion expectations
+Desired support:
+- readable raw summary rendering
+- compact table rendering for schema/path catalogs
+- export manifests rich enough to explain extracted blobs
+
+Raw mode should only be considered “complete” for this spec when it supports strong schema discovery, nested inference, robust blob extraction heuristics, and agent-friendly readable summaries without being reduced to a weak fallback path.
 
 ---
 
@@ -1255,7 +1420,18 @@ Representative long-term commands could include:
 - `export`
 - `status`
 
-Domain-specific aliases can exist, but generic commands are the architectural center.
+The CLI should be full-featured, but it should primarily surface the generic runtime rather than duplicate it with an ever-growing garden of special-case commands.
+
+### 28.3 Runtime-first agent UX
+For agents, the primary interface should be the query runtime:
+- `ds` for dataset access
+- `pretty(...)` for adaptive readable output
+- `table(...)` for deterministic tabular output
+- manual string building for custom compact summaries
+
+CLI/docs/skills should teach these runtime primitives directly.
+
+Report and table presentation helpers should be shared between the runtime and CLI rather than reimplemented separately in command-specific code.
 
 ---
 
@@ -1308,6 +1484,28 @@ Lazy layers are not sufficient without explicit lifecycle policy.
 - allow heavy layers to be evicted with metadata retained
 - maintain build metadata for debugging
 - use CAS for heavy repeated blobs
+
+### 30.3 Layer/workspace metadata
+Layers and workspace-backed outputs should expose enough lifecycle metadata for operators and agents to reason about cache state.
+
+Representative metadata includes:
+- `status`
+- `buildMs`
+- `lastAccessedAt`
+- `sizeBytes` where feasible
+- dependency keys
+- `evictable`
+- `pinned`
+
+### 30.4 Required lifecycle operations
+The kernel should support:
+- evicting cold layers
+- pinning/unpinning layers or outputs
+- releasing export/materialization leases
+- workspace cleanup under TTL/quota rules
+- enough status visibility to debug why data was retained or evicted
+
+A full global CAS can remain future work, but a real per-session lifecycle policy should be in place before moving on to later domains.
 
 ---
 
@@ -1376,11 +1574,12 @@ Build:
 - render measures
 - layout shifts / soft navigations
 
-### Phase 4: Generic reports and API surface
+### Phase 4: Generic reports, API surface, and presentation
 Build:
 - generic HTTP routes
 - generic CLI
 - report/table/artifact/export commands
+- first-class readable output via `pretty(...)`, `table(...)`, and report/table presentation helpers
 
 ### Phase 5: Raw mode
 Build:
@@ -1388,6 +1587,17 @@ Build:
 - schema inference
 - inferred tables
 - extractable blob support
+- richer raw blob heuristics and readable summaries
+
+### Phase 5.5: Pre-OTEL hardening gate
+Before OTEL, complete:
+- pushdown-ready table/query plan
+- runtime presentation model
+- provenance normalization
+- layer/workspace lifecycle basics
+- DevTools completion for the agreed semantic surfaces
+- raw-mode completion for the agreed schema/blob surfaces
+- docs/checklist updates aligned with the actual runtime surface
 
 ### Phase 6: OTEL driver
 Use OTEL to pressure-test the generality of the architecture.
@@ -1444,7 +1654,15 @@ await ds.tables.get("devtools.dims.interactions").rows()
 ```
 
 ```ts
+await ds.tables.get("devtools.views.codeHotspots").limit(10).table()
+```
+
+```ts
 await ds.reports.run("devtools.interaction", { id: "4758" })
+```
+
+```ts
+await ds.reports.get("devtools.interaction").args({ id: "4758" }).pretty()
 ```
 
 ```ts
@@ -1460,7 +1678,16 @@ await ds.tables.get("code.dims.sources").rows()
 ```
 
 ```ts
-await ds.schema.describeTable("raw.inferred.main")
+const rows = await ds.tables.get("raw.schema.paths").limit(20).rows()
+table(rows)
+```
+
+```ts
+const report = await ds.reports.run("devtools.interaction", { id: "4758" })
+return [
+  `interaction ${report.interaction.interactionId} ${report.interaction.totalLatencyMs}ms`,
+  `dropped ${report.droppedFrames} frames`,
+].join("\n")
 ```
 
 These examples intentionally show:
@@ -1468,6 +1695,8 @@ These examples intentionally show:
 - domain-specific data
 - file export/materialization
 - raw and semantic layers living side by side
+- built-in readable presentation
+- manual string building as a first-class workflow
 
 ---
 
@@ -1480,6 +1709,7 @@ The final confirmed direction is:
 - Expose one stable query root, **`ds`**.
 - Treat **raw data**, **normalized facts**, **semantic dimensions/views**, and **reports** as separate but connected layers.
 - Make **artifacts**, **materialized files**, and **workspace management** first-class.
+- Provide first-class readable presentation through **`pretty(...)`**, **`table(...)`**, and report/table presentation helpers without polluting plain JS values.
 - Preserve **provenance**, **lossless IDs**, and **canonical units**.
 - Make **DevTools** the first implementation target, but keep the architecture fully capable of supporting **OTEL**, **Sentry**, **bundle outputs**, and **raw mode** at the same level of depth.
 

@@ -1,24 +1,31 @@
 import { statSync } from "fs";
 import { LayerHost } from "./layer-host.js";
 import { ArtifactStore, FileCollectionStore, FileMaterializer } from "./artifacts.js";
+import { pretty as prettyValue, table as tableValue } from "./presentation.js";
 import { WorkspaceManager } from "./workspace.js";
 import { discoverJsonPaths, sampleJsonPath } from "./json-introspect.js";
+import { createReportQueryHandle, createTableQueryHandle } from "./runtime-handles.js";
+import { applyTablePlan, stripPagination } from "./table-query.js";
 import type {
   ArtifactData,
   ArtifactProvider,
   DatasetQueryApi,
   DatasetSession as DatasetSessionContract,
   FileCollectionProvider,
+  PrettyOptions,
   QueryRuntimeOptions,
   ReportProvider,
   SourceDetection,
   TableProvider,
+  TableQueryPlan,
 } from "./types.js";
 import type {
   ArtifactRef,
   CapabilityMap,
   DatasetManifest,
   FileCollectionInfo,
+  LeaseInfo,
+  LayerStatusInfo,
   ReportInfo,
   TableInfo,
 } from "../shared/types.js";
@@ -156,6 +163,41 @@ export class DatasetSession implements DatasetSessionContract {
     return provider();
   }
 
+  async queryTable(name: string, plan?: TableQueryPlan) {
+    const provider = this.getTable(name);
+    if (!provider) throw new Error(`Table not found: ${name}`);
+    if (provider.query) return provider.query(this, plan);
+    const baseRows = await provider.rows(this);
+    return applyTablePlan(baseRows, plan);
+  }
+
+  async countTable(name: string, plan?: TableQueryPlan) {
+    const provider = this.getTable(name);
+    if (!provider) throw new Error(`Table not found: ${name}`);
+    if (provider.count) return provider.count(this, stripPagination(plan));
+    const rows = await this.queryTable(name, stripPagination(plan));
+    return rows.length;
+  }
+
+  async prettyTable(name: string, plan?: TableQueryPlan, options?: PrettyOptions) {
+    const provider = this.getTable(name);
+    if (!provider) throw new Error(`Table not found: ${name}`);
+    if (provider.pretty) return provider.pretty(this, plan);
+    const rows = await this.queryTable(name, plan);
+    return tableValue(rows, {
+      maxRows: options?.maxRows,
+      columns: plan?.select,
+      columnMeta: provider.columns,
+    });
+  }
+
+  async prettyReport(name: string, args?: Record<string, unknown>) {
+    const provider = this.getReport(name);
+    if (!provider) throw new Error(`Report not found: ${name}`);
+    if (provider.pretty) return provider.pretty(this, args);
+    return prettyValue(await provider.run(this, args));
+  }
+
   async listArtifacts(): Promise<ArtifactRef[]> {
     return this.artifactStore.list(this);
   }
@@ -176,8 +218,36 @@ export class DatasetSession implements DatasetSessionContract {
     return this.fileMaterializer.exportCollection(this, collectionId, options);
   }
 
-  async layerStatus() {
+  async releaseLease(leaseId: string) {
+    return this.workspace.releaseLease(leaseId);
+  }
+
+  async pinLease(leaseId: string) {
+    return this.workspace.pinLease(leaseId);
+  }
+
+  async unpinLease(leaseId: string) {
+    return this.workspace.unpinLease(leaseId);
+  }
+
+  async listLeases(): Promise<LeaseInfo[]> {
+    return this.workspace.listLeases();
+  }
+
+  async layerStatus(): Promise<LayerStatusInfo[]> {
     return this.layers.status();
+  }
+
+  async evictLayer(key: string) {
+    return { ok: this.layers.evict(key), key };
+  }
+
+  async pinLayer(key: string) {
+    return this.layers.pin(key);
+  }
+
+  async unpinLayer(key: string) {
+    return this.layers.unpin(key);
   }
 
   createQueryApi(_options?: QueryRuntimeOptions): DatasetQueryApi {
@@ -204,16 +274,11 @@ export class DatasetSession implements DatasetSessionContract {
       },
       tables: {
         names: async () => session.listTables().map((table) => table.name),
-        get: async (name: string) => {
-          const provider = session.getTable(name);
-          if (!provider) {
+        get: (name: string) => {
+          if (!session.getTable(name)) {
             throw new Error(`Table not found: ${name}`);
           }
-          return {
-            rows: async (options) => provider.rows(session, options),
-            first: async () => (await provider.rows(session, { limit: 1 }))[0] ?? null,
-            count: async () => (await provider.rows(session)).length,
-          };
+          return createTableQueryHandle(session, name);
         },
       },
       reports: {
@@ -224,6 +289,12 @@ export class DatasetSession implements DatasetSessionContract {
             throw new Error(`Report not found: ${name}`);
           }
           return provider.run(session, args);
+        },
+        get: (name: string) => {
+          if (!session.getReport(name)) {
+            throw new Error(`Report not found: ${name}`);
+          }
+          return createReportQueryHandle(session, name);
         },
       },
       artifacts: {
@@ -255,13 +326,24 @@ export class DatasetSession implements DatasetSessionContract {
         listCollections: async () => session.listCollections(),
         materializeArtifact: async (artifactId, options) => session.materializeArtifact(artifactId, options),
         exportCollection: async (collectionId, options) => session.exportCollection(collectionId, options),
+        releaseLease: async (leaseId: string) => session.releaseLease(leaseId),
+        pinLease: async (leaseId: string) => session.pinLease(leaseId),
+        unpinLease: async (leaseId: string) => session.unpinLease(leaseId),
+        leases: async () => session.listLeases(),
       },
       workspace: {
         root: async () => session.workspace.getRoot(),
         allocScratchDir: async (purpose: string) => session.workspace.allocScratchDir(purpose),
+        releaseLease: async (leaseId: string) => session.releaseLease(leaseId),
+        pinLease: async (leaseId: string) => session.pinLease(leaseId),
+        unpinLease: async (leaseId: string) => session.unpinLease(leaseId),
+        leases: async () => session.listLeases(),
       },
       layers: {
         status: async () => session.layerStatus(),
+        evict: async (key: string) => session.evictLayer(key),
+        pin: async (key: string) => session.pinLayer(key),
+        unpin: async (key: string) => session.unpinLayer(key),
       },
       ns: Object.fromEntries(this.namespaces.entries()),
     };

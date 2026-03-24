@@ -183,12 +183,18 @@ export async function handleRequest(req: Request): Promise<Response> {
     const [, sessionId, tableName] = tableQueryMatch;
     const session = sessionManager.get(sessionId!);
     if (!session) return json({ error: `Session not found: ${sessionId}` }, 404);
-    const table = session.getTable(decodeURIComponent(tableName!));
+    const decodedName = decodeURIComponent(tableName!);
+    const table = session.getTable(decodedName);
     if (!table) return json({ error: `Table not found: ${tableName}` }, 404);
     const body = (await readJson(req).catch(() => ({}))) as Record<string, any>;
-    const limit = typeof body.limit === "number" && Number.isFinite(body.limit) && body.limit > 0 ? body.limit : undefined;
-    const rows = await table.rows(session, { limit });
-    return json({ table: table.name, rows });
+    const rows = await session.queryTable(decodedName, body);
+    const rendered =
+      body.format === "table"
+        ? await session.prettyTable(decodedName, body, { mode: "table", maxRows: typeof body.maxRows === "number" ? body.maxRows : undefined })
+        : body.format === "pretty"
+          ? await session.prettyTable(decodedName, body, { maxRows: typeof body.maxRows === "number" ? body.maxRows : undefined })
+          : undefined;
+    return json({ table: table.name, rows, rendered });
   }
 
   const reportsMatch = pathname.match(/^\/sessions\/([^/]+)\/reports$/);
@@ -203,10 +209,14 @@ export async function handleRequest(req: Request): Promise<Response> {
     const [, sessionId, reportName] = reportRunMatch;
     const session = sessionManager.get(sessionId!);
     if (!session) return json({ error: `Session not found: ${sessionId}` }, 404);
-    const report = session.getReport(decodeURIComponent(reportName!));
+    const decodedName = decodeURIComponent(reportName!);
+    const report = session.getReport(decodedName);
     if (!report) return json({ error: `Report not found: ${reportName}` }, 404);
-    const body = await readJson(req).catch(() => ({}));
-    return json({ report: report.name, result: await report.run(session, body) });
+    const body = (await readJson(req).catch(() => ({}))) as Record<string, any>;
+    const { format, ...reportArgs } = body;
+    const result = await report.run(session, reportArgs);
+    const rendered = format === "pretty" ? await session.prettyReport(decodedName, reportArgs) : undefined;
+    return json({ report: report.name, result, rendered });
   }
 
   const artifactsMatch = pathname.match(/^\/sessions\/([^/]+)\/artifacts$/);
@@ -254,6 +264,17 @@ export async function handleRequest(req: Request): Promise<Response> {
     return json({ layers: await session.layerStatus() });
   }
 
+  const layerPinMatch = pathname.match(/^\/sessions\/([^/]+)\/layers\/([^/]+)\/(pin|unpin|evict)$/);
+  if (layerPinMatch && method === "POST") {
+    const [, sessionId, layerKey, action] = layerPinMatch;
+    const session = sessionManager.get(sessionId!);
+    if (!session) return json({ error: `Session not found: ${sessionId}` }, 404);
+    const decodedKey = decodeURIComponent(layerKey!);
+    if (action === "pin") return json({ layer: await session.pinLayer(decodedKey) });
+    if (action === "unpin") return json({ layer: await session.unpinLayer(decodedKey) });
+    return json(await session.evictLayer(decodedKey));
+  }
+
   const collectionsMatch = pathname.match(/^\/sessions\/([^/]+)\/files\/collections$/);
   if (collectionsMatch && method === "GET") {
     const session = sessionManager.get(collectionsMatch[1]!);
@@ -268,6 +289,24 @@ export async function handleRequest(req: Request): Promise<Response> {
     if (!session) return json({ error: `Session not found: ${sessionId}` }, 404);
     const body = await readJson(req).catch(() => ({}));
     return json(await session.exportCollection(decodeURIComponent(collectionId!), body));
+  }
+
+  const leasesMatch = pathname.match(/^\/sessions\/([^/]+)\/files\/leases$/);
+  if (leasesMatch && method === "GET") {
+    const session = sessionManager.get(leasesMatch[1]!);
+    if (!session) return json({ error: `Session not found: ${leasesMatch[1]}` }, 404);
+    return json({ leases: await session.listLeases() });
+  }
+
+  const leaseActionMatch = pathname.match(/^\/sessions\/([^/]+)\/files\/leases\/([^/]+)\/(pin|unpin|release)$/);
+  if (leaseActionMatch && method === "POST") {
+    const [, sessionId, leaseId, action] = leaseActionMatch;
+    const session = sessionManager.get(sessionId!);
+    if (!session) return json({ error: `Session not found: ${sessionId}` }, 404);
+    const decodedLeaseId = decodeURIComponent(leaseId!);
+    if (action === "pin") return json({ lease: await session.pinLease(decodedLeaseId) });
+    if (action === "unpin") return json({ lease: await session.unpinLease(decodedLeaseId) });
+    return json(await session.releaseLease(decodedLeaseId));
   }
 
   return json({ error: "Not found" }, 404);
