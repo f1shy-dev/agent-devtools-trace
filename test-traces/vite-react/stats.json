@@ -1,0 +1,306 @@
+[
+  {
+    "filename": "assets/index-Bc2oaLMj.js",
+    "label": "assets/index-Bc2oaLMj.js",
+    "parsedSize": 192509,
+    "mapSize": 842339,
+    "gzipSize": 61446,
+    "brotliSize": 53271,
+    "source": [
+      {
+        "parsedSize": 3010,
+        "gzipSize": 977,
+        "brotliSize": 802,
+        "label": "src",
+        "groups": [
+          {
+            "parsedSize": 100,
+            "gzipSize": 160,
+            "brotliSize": 112,
+            "label": "assets",
+            "groups": [
+              {
+                "parsedSize": 30,
+                "gzipSize": 50,
+                "brotliSize": 34,
+                "importedBy": [],
+                "label": "vite.svg",
+                "filename": "src/assets/vite.svg"
+              },
+              {
+                "parsedSize": 31,
+                "gzipSize": 51,
+                "brotliSize": 35,
+                "importedBy": [],
+                "label": "react.svg",
+                "filename": "src/assets/react.svg"
+              },
+              {
+                "parsedSize": 39,
+                "gzipSize": 59,
+                "brotliSize": 43,
+                "importedBy": [],
+                "label": "hero.png",
+                "filename": "src/assets/hero.png"
+              }
+            ],
+            "filename": "src/assets"
+          },
+          {
+            "parsedSize": 92,
+            "gzipSize": 101,
+            "brotliSize": 80,
+            "importedBy": [
+              {
+                "id": "react",
+                "kind": "static"
+              },
+              {
+                "id": "react-dom/client",
+                "kind": "static"
+              },
+              {
+                "id": "src/App.tsx",
+                "kind": "static"
+              }
+            ],
+            "label": "main.tsx",
+            "filename": "src/main.tsx"
+          },
+          {
+            "parsedSize": 2818,
+            "gzipSize": 716,
+            "brotliSize": 610,
+            "importedBy": [
+              {
+                "id": "react",
+                "kind": "static"
+              },
+              {
+                "id": "src/assets/react.svg",
+                "kind": "static"
+              },
+              {
+                "id": "src/assets/vite.svg",
+                "kind": "static"
+              },
+              {
+                "id": "src/assets/hero.png",
+                "kind": "static"
+              }
+            ],
+            "label": "App.tsx",
+            "filename": "src/App.tsx"
+          }
+        ],
+        "filename": "src"
+      },
+      {
+        "parsedSize": 189499,
+        "gzipSize": 60469,
+        "brotliSize": 52469,
+        "label": "node_modules",
+        "groups": [
+          {
+            "parsedSize": 7861,
+            "gzipSize": 3147,
+            "brotliSize": 2794,
+            "label": "react",
+            "groups": [
+              {
+                "parsedSize": 26,
+                "gzipSize": 46,
+                "brotliSize": 30,
+                "importedBy": [],
+                "label": "index.js",
+                "filename": "node_modules/react/index.js"
+              },
+              {
+                "parsedSize": 19,
+                "gzipSize": 39,
+                "brotliSize": 23,
+                "importedBy": [],
+                "label": "jsx-runtime.js",
+                "filename": "node_modules/react/jsx-runtime.js"
+              },
+              {
+                "parsedSize": 7816,
+                "gzipSize": 3062,
+                "brotliSize": 2741,
+                "label": "cjs",
+                "groups": [
+                  {
+                    "parsedSize": 339,
+                    "gzipSize": 242,
+                    "brotliSize": 211,
+                    "importedBy": [],
+                    "label": "react-jsx-runtime.production.js",
+                    "filename": "node_modules/react/cjs/react-jsx-runtime.production.js"
+                  },
+                  {
+                    "parsedSize": 7477,
+                    "gzipSize": 2820,
+                    "brotliSize": 2530,
+                    "importedBy": [],
+                    "label": "react.production.js",
+                    "filename": "node_modules/react/cjs/react.production.js"
+                  }
+                ],
+                "filename": "node_modules/react/cjs"
+              }
+            ],
+            "filename": "node_modules/react"
+          },
+          {
+            "parsedSize": 3526,
+            "gzipSize": 1541,
+            "brotliSize": 1375,
+            "label": "scheduler",
+            "groups": [
+              {
+                "parsedSize": 26,
+                "gzipSize": 46,
+                "brotliSize": 30,
+                "importedBy": [],
+                "label": "index.js",
+                "filename": "node_modules/scheduler/index.js"
+              },
+              {
+                "parsedSize": 3500,
+                "gzipSize": 1495,
+                "brotliSize": 1345,
+                "label": "cjs",
+                "groups": [
+                  {
+                    "parsedSize": 3500,
+                    "gzipSize": 1495,
+                    "brotliSize": 1345,
+                    "importedBy": [],
+                    "label": "scheduler.production.js",
+                    "filename": "node_modules/scheduler/cjs/scheduler.production.js"
+                  }
+                ],
+                "filename": "node_modules/scheduler/cjs"
+              }
+            ],
+            "filename": "node_modules/scheduler"
+          },
+          {
+            "parsedSize": 178112,
+            "gzipSize": 55781,
+            "brotliSize": 48300,
+            "label": "react-dom",
+            "groups": [
+              {
+                "parsedSize": 224,
+                "gzipSize": 156,
+                "brotliSize": 120,
+                "importedBy": [],
+                "label": "client.js",
+                "filename": "node_modules/react-dom/client.js"
+              },
+              {
+                "parsedSize": 225,
+                "gzipSize": 158,
+                "brotliSize": 122,
+                "importedBy": [],
+                "label": "index.js",
+                "filename": "node_modules/react-dom/index.js"
+              },
+              {
+                "parsedSize": 177663,
+                "gzipSize": 55467,
+                "brotliSize": 48058,
+                "label": "cjs",
+                "groups": [
+                  {
+                    "parsedSize": 3249,
+                    "gzipSize": 1191,
+                    "brotliSize": 1035,
+                    "importedBy": [],
+                    "label": "react-dom.production.js",
+                    "filename": "node_modules/react-dom/cjs/react-dom.production.js"
+                  },
+                  {
+                    "parsedSize": 174414,
+                    "gzipSize": 54276,
+                    "brotliSize": 47023,
+                    "importedBy": [],
+                    "label": "react-dom-client.production.js",
+                    "filename": "node_modules/react-dom/cjs/react-dom-client.production.js"
+                  }
+                ],
+                "filename": "node_modules/react-dom/cjs"
+              }
+            ],
+            "filename": "node_modules/react-dom"
+          }
+        ],
+        "filename": "node_modules"
+      }
+    ],
+    "isAsset": true,
+    "isEntry": true,
+    "imports": []
+  },
+  {
+    "filename": "assets/hero-5sT3BiRD.png",
+    "label": "assets/hero-5sT3BiRD.png",
+    "parsedSize": 44919,
+    "mapSize": 0,
+    "gzipSize": 44855,
+    "brotliSize": 44923,
+    "source": [],
+    "isAsset": true,
+    "isEntry": false,
+    "imports": []
+  },
+  {
+    "filename": "assets/index-D64VDMd1.css",
+    "label": "assets/index-D64VDMd1.css",
+    "parsedSize": 4105,
+    "mapSize": 0,
+    "gzipSize": 1473,
+    "brotliSize": 1258,
+    "source": [],
+    "isAsset": true,
+    "isEntry": false,
+    "imports": []
+  },
+  {
+    "filename": "assets/react-CHdo91hT.svg",
+    "label": "assets/react-CHdo91hT.svg",
+    "parsedSize": 4126,
+    "mapSize": 0,
+    "gzipSize": 2053,
+    "brotliSize": 1822,
+    "source": [],
+    "isAsset": true,
+    "isEntry": false,
+    "imports": []
+  },
+  {
+    "filename": "assets/vite-BF8QNONU.svg",
+    "label": "assets/vite-BF8QNONU.svg",
+    "parsedSize": 8709,
+    "mapSize": 0,
+    "gzipSize": 1585,
+    "brotliSize": 1308,
+    "source": [],
+    "isAsset": true,
+    "isEntry": false,
+    "imports": []
+  },
+  {
+    "filename": "index.html",
+    "label": "index.html",
+    "parsedSize": 460,
+    "mapSize": 0,
+    "gzipSize": 293,
+    "brotliSize": 177,
+    "source": [],
+    "isAsset": true,
+    "isEntry": false,
+    "imports": []
+  }
+]

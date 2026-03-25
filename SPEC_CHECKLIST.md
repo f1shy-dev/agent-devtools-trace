@@ -175,4 +175,7 @@ This checklist tracks the remaining work to fully satisfy `SPEC.md` for the kern
 - [ ] global CAS / content-addressed blob store
 - [ ] multi-dataset composition
 - [ ] Sentry driver
-- [ ] bundle-analysis driver on the new architecture
+- [x] bundle-analysis driver on the new architecture
+  - [x] vite-bundle-analyzer JSON driver exists
+  - [x] Next.js Turbopack bundle analyzer directory driver exists
+  - [x] bundle analysis tables / views / reports are documented in the trace-server skill
