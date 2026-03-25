@@ -355,8 +355,9 @@ export async function executeQuery(
           queryState.error = error;
         },
       );
-      while (!queryState.settled) {
+      while (!queryState.settled && !abort.signal.aborted) {
         await new Promise<void>((resolve) => setImmediate(resolve));
+        if (abort.signal.aborted) break;
         try {
           drainMicrotasksScript.runInNewContext(context, { timeout, microtaskMode: "afterEvaluate" });
         } catch (error) {
