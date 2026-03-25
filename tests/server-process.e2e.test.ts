@@ -107,4 +107,38 @@ describe("server process e2e", () => {
     );
     expect(query.result).toBe("1");
   });
+
+  it("returns query errors without killing the server", async () => {
+    ensureBuilt();
+    const dir = createTempDir();
+    const socketPath = join(dir, "server.sock");
+    const pidFile = join(dir, "server.pid");
+    const traceFile = createTraceFile();
+
+    const child = spawn(process.execPath, [join(process.cwd(), "dist/server/index.js")], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        TRACE_SERVER_SOCKET: socketPath,
+        TRACE_SERVER_PID_FILE: pidFile,
+      },
+      stdio: "ignore",
+    });
+    childProcesses.push(child);
+
+    const client = new TraceServerClient(socketPath);
+    await waitForHealth(client);
+
+    const loaded = await client.loadSession(traceFile, "e2e-throw");
+    await expect(client.query(loaded.sessionId, `throw new Error("test")`)).rejects.toThrow("test");
+
+    const health = await client.health();
+    expect(health.status).toBe("ok");
+
+    const query = await client.query(
+      loaded.sessionId,
+      `const rows = await (await ds.tables.get('devtools.dims.screenshots')).rows(); return rows.length;`,
+    );
+    expect(query.result).toBe("1");
+  });
 });

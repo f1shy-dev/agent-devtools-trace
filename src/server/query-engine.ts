@@ -357,16 +357,18 @@ export async function executeQuery(
       );
       while (!queryState.settled && !abort.signal.aborted) {
         await new Promise<void>((resolve) => setImmediate(resolve));
-        if (abort.signal.aborted) break;
+        if (abort.signal.aborted || queryState.settled) break;
         try {
           drainMicrotasksScript.runInNewContext(context, { timeout, microtaskMode: "afterEvaluate" });
         } catch (error) {
+          if (queryState.settled) break;
           throw normalizeExecutionError(error, timeout);
         }
       }
       if (queryState.rejected) throw normalizeExecutionError(queryState.error, timeout);
       return queryState.value;
     })();
+    completion.catch(() => {});
     return await Promise.race([completion, timer]);
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
