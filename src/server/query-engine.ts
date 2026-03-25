@@ -8,10 +8,47 @@ import type { DatasetSession } from "../core/types.js";
 export class QueryTimeoutError extends Error {
   readonly timeout: number;
   constructor(timeout: number) {
-    super(`Query timed out after ${timeout}ms`);
+    const display = timeout >= 1000 ? `${(timeout / 1000).toFixed(1)}s` : `${timeout}ms`;
+    super(`Query timed out after ${display}`);
     this.name = "QueryTimeoutError";
     this.timeout = timeout;
   }
+}
+
+const safeConsole = {
+  log: (..._args: unknown[]) => {},
+  warn: (..._args: unknown[]) => {},
+  error: (..._args: unknown[]) => {},
+  info: (..._args: unknown[]) => {},
+  debug: (..._args: unknown[]) => {},
+};
+const drainMicrotasksScript = new vm.Script("");
+
+function normalizeExecutionError(error: unknown, timeout: number) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" &&
+          error !== null &&
+          "message" in error &&
+          typeof error.message === "string"
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : null;
+  if (message && /Script execution timed out|timed out after/i.test(message)) {
+    return new QueryTimeoutError(timeout);
+  }
+  return error;
+}
+
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  return (
+    (typeof value === "object" || typeof value === "function") &&
+    value !== null &&
+    "then" in value &&
+    typeof value.then === "function"
+  );
 }
 
 async function transpile(source: string): Promise<string> {
@@ -23,13 +60,28 @@ async function transpile(source: string): Promise<string> {
       sourcemap: false,
     });
     return result.code;
-  } catch {
-    return ts.transpileModule(source, {
+  } catch (error) {
+    const parsed = ts.createSourceFile("query.ts", source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
+    if (
+      parsed.parseDiagnostics.some(
+        (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
+      )
+    ) {
+      throw error;
+    }
+    const result = ts.transpileModule(source, {
       compilerOptions: {
         module: ts.ModuleKind.ESNext,
         target: ts.ScriptTarget.ES2022,
       },
-    }).outputText;
+      reportDiagnostics: true,
+    });
+    if (
+      result.diagnostics?.some((diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error)
+    ) {
+      throw error;
+    }
+    return result.outputText;
   }
 }
 
@@ -166,8 +218,30 @@ async function buildQueryScript(code: string, mode: "expression" | "auto-return"
   const wrappedCode =
     mode === "expression"
       ? `(async () => { return (${code}); })()`
-      : `(async () => { ${statementCode} })()`;
+      : mode === "auto-return"
+        ? `(async () => { ${statementCode} })()`
+        : `(async () => { ${statementCode}\nreturn undefined; })()`;
   return new vm.Script(await transpile(wrappedCode));
+}
+
+async function compileQueryScript(code: string): Promise<vm.Script> {
+  let expressionError: unknown;
+
+  try {
+    return await buildQueryScript(code, "expression");
+  } catch (error) {
+    expressionError = error;
+  }
+
+  try {
+    return await buildQueryScript(code, "auto-return");
+  } catch {}
+
+  try {
+    return await buildQueryScript(code, "statements");
+  } catch {
+    throw expressionError;
+  }
 }
 
 export async function executeQuery(
@@ -175,19 +249,62 @@ export async function executeQuery(
   code: string,
   timeout = DEFAULT_QUERY_TIMEOUT,
 ) {
-  let script: vm.Script;
-  try {
-    script = await buildQueryScript(code, "expression");
-  } catch {
-    try {
-      script = await buildQueryScript(code, "auto-return");
-    } catch {
-      script = await buildQueryScript(code, "statements");
-    }
-  }
+  const script = await compileQueryScript(code);
 
   const abort = new AbortController();
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const activeTimers = new Set<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval>>();
+  const sandboxSetTimeout = (
+    fn: (...args: unknown[]) => unknown,
+    ms?: number,
+    ...args: unknown[]
+  ) => {
+    if (abort.signal.aborted) {
+      const id = setTimeout(() => {}, 0);
+      clearTimeout(id);
+      return id;
+    }
+    let id: ReturnType<typeof setTimeout>;
+    id = setTimeout(() => {
+      activeTimers.delete(id);
+      if (abort.signal.aborted) return;
+      void Promise.resolve(fn(...args)).catch(() => {});
+    }, ms);
+    activeTimers.add(id);
+    id.unref?.();
+    return id;
+  };
+  const sandboxClearTimeout = (id: ReturnType<typeof setTimeout>) => {
+    activeTimers.delete(id);
+    clearTimeout(id);
+  };
+  const sandboxSetInterval = (
+    fn: (...args: unknown[]) => unknown,
+    ms?: number,
+    ...args: unknown[]
+  ) => {
+    if (abort.signal.aborted) {
+      const id = setInterval(() => {}, 0);
+      clearInterval(id);
+      return id;
+    }
+    let id: ReturnType<typeof setInterval>;
+    id = setInterval(() => {
+      if (abort.signal.aborted) {
+        activeTimers.delete(id);
+        clearInterval(id);
+        return;
+      }
+      void Promise.resolve(fn(...args)).catch(() => {});
+    }, ms);
+    activeTimers.add(id);
+    id.unref?.();
+    return id;
+  };
+  const sandboxClearInterval = (id: ReturnType<typeof setInterval>) => {
+    activeTimers.delete(id);
+    clearInterval(id);
+  };
   const timer = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
       abort.abort();
@@ -203,31 +320,61 @@ export async function executeQuery(
       pretty: (value: unknown, options?: { maxRows?: number; mode?: "auto" | "table" }) =>
         prettyValue(value, options),
       table: (value: unknown, options?: { maxRows?: number }) => tableValue(value, options),
-      console,
-      performance,
+      console: safeConsole,
       Buffer,
       URL,
       TextEncoder,
       TextDecoder,
-      setTimeout,
-      clearTimeout,
-      setInterval,
-      clearInterval,
+      setTimeout: sandboxSetTimeout,
+      clearTimeout: sandboxClearTimeout,
+      setInterval: sandboxSetInterval,
+      clearInterval: sandboxClearInterval,
     };
     let result: unknown;
     try {
-      result = script.runInNewContext(context, { timeout });
+      result = script.runInNewContext(context, { timeout, microtaskMode: "afterEvaluate" });
     } catch (error) {
-      if (
-        error instanceof Error &&
-        /Script execution timed out|timed out after/i.test(error.message)
-      ) {
-        throw new QueryTimeoutError(timeout);
-      }
-      throw error;
+      throw normalizeExecutionError(error, timeout);
     }
-    return await Promise.race([Promise.resolve(result), timer]);
+    const completion = (async () => {
+      if (!isPromiseLike(result)) return result;
+      const queryState: {
+        settled: boolean;
+        rejected: boolean;
+        value?: unknown;
+        error?: unknown;
+      } = { settled: false, rejected: false };
+      Promise.resolve(result).then(
+        (value) => {
+          queryState.settled = true;
+          queryState.value = value;
+        },
+        (error) => {
+          queryState.settled = true;
+          queryState.rejected = true;
+          queryState.error = error;
+        },
+      );
+      while (!queryState.settled && !abort.signal.aborted) {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        if (abort.signal.aborted) break;
+        try {
+          drainMicrotasksScript.runInNewContext(context, { timeout, microtaskMode: "afterEvaluate" });
+        } catch (error) {
+          throw normalizeExecutionError(error, timeout);
+        }
+      }
+      if (queryState.rejected) throw normalizeExecutionError(queryState.error, timeout);
+      return queryState.value;
+    })();
+    return await Promise.race([completion, timer]);
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
+    abort.abort();
+    for (const id of activeTimers) {
+      clearTimeout(id);
+      clearInterval(id);
+    }
+    activeTimers.clear();
   }
 }
