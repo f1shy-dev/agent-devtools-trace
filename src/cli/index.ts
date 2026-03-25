@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { defineCommand, runMain } from "citty";
+import { readFileSync } from "fs";
 import { resolve } from "path";
 import { TraceServerClient } from "./client.js";
 import { handleCommandError } from "./errors.js";
@@ -326,20 +327,39 @@ const main = defineCommand({
     query: defineCommand({
       meta: {
         name: "query",
-        description: "Run JS/TS against the dataset runtime (ds, pretty, table).",
+        description:
+          "Run JS/TS against the dataset runtime (ds, pretty, table). Use --file to avoid shell escaping.",
       },
       args: {
         session: { type: "positional", required: true, description: "Session id or alias." },
-        code: { type: "positional", required: true, description: "Inline JS/TS code to execute." },
+        code: {
+          type: "positional",
+          required: false,
+          description: "Inline JS/TS code to execute (omit if using --file).",
+        },
+        file: {
+          type: "string",
+          alias: "f",
+          description: "Path to a JS/TS file containing the query code (avoids shell escaping).",
+        },
         timeout: { type: "string", alias: "t", description: "Optional timeout in milliseconds." },
       },
       async run({ args }) {
         try {
+          let code: string;
+          if (args.file) {
+            code = readFileSync(resolve(args.file), "utf8");
+          } else if (args.code) {
+            code = args.code;
+          } else {
+            console.error("Error: provide inline code or --file path");
+            process.exit(1);
+          }
           await ensureServer();
           const client = new TraceServerClient();
           const result = await client.query(
             args.session,
-            args.code,
+            code,
             args.timeout ? Number.parseInt(args.timeout, 10) : undefined,
           );
           console.log(result.result);
