@@ -4,11 +4,13 @@ Use this guide for `vite-bundle-analyzer` JSON outputs loaded into the dataset k
 
 ## Generating the trace
 
-Add `vite-bundle-analyzer` to your Vite project and configure it to output JSON:
+Install `vite-bundle-analyzer`:
 
 ```bash
 npm install -D vite-bundle-analyzer
 ```
+
+### Vite
 
 ```ts
 // vite.config.ts
@@ -25,19 +27,61 @@ export default defineConfig({
 })
 ```
 
-Then build your project:
+### Rollup
+
+```js
+import { adapter, analyzer } from 'vite-bundle-analyzer'
+
+export default {
+  plugins: [
+    adapter(analyzer({ analyzerMode: 'json' }))
+  ]
+}
+```
+
+### Rolldown (Experimental)
+
+```js
+import { unstableRolldownAdapter, analyzer } from 'vite-bundle-analyzer'
+
+export default {
+  plugins: [
+    unstableRolldownAdapter(analyzer({ analyzerMode: 'json' }))
+  ]
+}
+```
+
+### CLI
+
+```bash
+npx vite-bundle-analyzer
+
+# For rolldown-vite projects
+npx vite-bundle-analyzer -e=rolldown-vite
+```
+
+Then build:
 ```bash
 npm run build
 ```
 
-The analyzer writes `stats.json` (or `stats.html` in `static` mode) to the build output directory (usually `dist/`). Load the JSON file directly:
+The analyzer writes `stats.json` to the build output directory (usually `dist/`). Load it:
 
 ```bash
 trace-server load dist/stats.json --alias mybundle
 ```
 
-Other `analyzerMode` options: `'server'` (live UI), `'static'` (HTML file), or a custom callback function. Only `'json'` mode produces a file compatible with this driver.
+Only `analyzerMode: 'json'` produces a file compatible with this driver. Other modes: `'server'` (live UI), `'static'` (HTML file), or a custom callback function.
 
+Key config options:
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `analyzerMode` | `'server'` | `'json'` for this driver |
+| `fileName` | `'stats'` | Output filename (without extension) |
+| `defaultSizes` | `'stat'` | Default size metric (`'stat'`, `'gzip'`, `'brotli'`) |
+| `include` / `exclude` | `[]` | Filter patterns for modules |
+| `gzipOptions` / `brotliOptions` | `{}` | Compression options |
 
 Supported inputs:
 - `.json`
