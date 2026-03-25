@@ -2,6 +2,10 @@
 import { defineCommand, runMain } from "citty";
 import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../../package.json") as { version: string };
 import { TraceServerClient } from "./client.js";
 import { handleCommandError } from "./errors.js";
 import { divider, formatNumber, renderTable } from "./format.js";
@@ -70,7 +74,7 @@ function shorten(text: string, max = 72) {
 const main = defineCommand({
   meta: {
     name: "trace-server",
-    version: "0.5.0",
+    version,
     description:
       "Runtime-first dataset kernel for DevTools traces and raw JSON. Query through ds, pretty(...), and table(...).",
   },
