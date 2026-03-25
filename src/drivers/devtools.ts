@@ -1041,7 +1041,7 @@ function buildCpuProfileModel(trace: ParsedTrace) {
     number,
     { nodeId: string; parentId?: string; callFrame: Record<string, any>; rawEventIds: string[] }
   >();
-  const nodeChildren = new Map<number, number[]>();
+  const nodeChildren = new Map<number, Set<number>>();
   const samples: any[] = [];
   let sampleIndex = 0;
 
@@ -1077,13 +1077,18 @@ function buildCpuProfileModel(trace: ParsedTrace) {
         rawEventIds: existing ? [...existing.rawEventIds, rawEventId] : [rawEventId],
       });
       if (typeof node.parent === "number") {
-        if (!nodeChildren.has(node.parent)) nodeChildren.set(node.parent, []);
-        nodeChildren.get(node.parent)!.push(node.id);
+        if (!nodeChildren.has(node.parent)) nodeChildren.set(node.parent, new Set());
+        nodeChildren.get(node.parent)!.add(node.id);
       }
     }
 
     const sampleIds = Array.isArray(cpuProfile?.samples) ? cpuProfile.samples : [];
-    const timeDeltas = Array.isArray(cpuProfile?.timeDeltas) ? cpuProfile.timeDeltas : [];
+    // timeDeltas lives under data (sibling of cpuProfile), NOT inside cpuProfile
+    const timeDeltas = Array.isArray(data?.timeDeltas)
+      ? data.timeDeltas
+      : Array.isArray(cpuProfile?.timeDeltas)
+        ? cpuProfile.timeDeltas
+        : [];
     let cursorUs = event.ts;
     sampleIds.forEach((sampleNodeId, sampleOffset) => {
       if (typeof sampleNodeId !== "number") return;
@@ -1133,7 +1138,7 @@ function buildCpuProfileModel(trace: ParsedTrace) {
     if (totalCountsMemo.has(nodeId)) {
       return { count: totalCountsMemo.get(nodeId)!, timeUs: totalTimeMemo.get(nodeId)! };
     }
-    const children = nodeChildren.get(Number(nodeId)) ?? [];
+    const children = nodeChildren.get(Number(nodeId)) ?? new Set<number>();
     let count = selfCounts.get(nodeId) ?? 0;
     let timeUs = selfTimeUs.get(nodeId) ?? 0;
     for (const childId of children) {

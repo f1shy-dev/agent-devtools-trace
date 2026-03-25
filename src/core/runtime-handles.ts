@@ -71,7 +71,12 @@ class RuntimeTableQueryHandle implements TableQueryHandle {
 
   async table(options?: PrettyOptions) {
     const rows = await this.rows();
-    return tableValue(rows, { maxRows: options?.maxRows });
+    const provider = this.session.getTable(this.tableName);
+    return tableValue(rows, {
+      maxRows: options?.maxRows,
+      columns: this.currentPlan.select,
+      columnMeta: provider?.columns,
+    });
   }
 }
 

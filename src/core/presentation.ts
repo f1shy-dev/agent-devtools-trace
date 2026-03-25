@@ -57,15 +57,28 @@ function cellValue(value: unknown) {
   if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint")
     return String(value);
   if (Array.isArray(value)) {
-    return value.every(
-      (item) =>
-        typeof item === "string" ||
-        typeof item === "number" ||
-        typeof item === "boolean" ||
-        item == null,
-    )
-      ? value.map((item) => formatScalar(item)).join(", ")
-      : JSON.stringify(value);
+    // Scalar arrays: join with commas
+    if (
+      value.every(
+        (item) =>
+          typeof item === "string" ||
+          typeof item === "number" ||
+          typeof item === "boolean" ||
+          item == null,
+      )
+    ) {
+      return value.map((item) => formatScalar(item)).join(", ");
+    }
+    // Arrays of named objects (e.g. column metadata): show just names
+    if (
+      value.length > 0 &&
+      value.every(
+        (item) => isPlainRecord(item) && typeof (item as Record<string, unknown>).name === "string",
+      )
+    ) {
+      return value.map((item) => (item as Record<string, unknown>).name).join(", ");
+    }
+    return JSON.stringify(value);
   }
   return JSON.stringify(value);
 }
