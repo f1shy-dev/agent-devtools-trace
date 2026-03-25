@@ -134,6 +134,12 @@ function buildEmbeddedBlobRows(payload: unknown) {
   }));
 }
 
+function shouldReportDetectionError(error: unknown) {
+  if (error instanceof RangeError) return true;
+  if (!(error instanceof Error)) return false;
+  return /heap|memory|allocation/i.test(error.message);
+}
+
 class RawArtifactProvider implements ArtifactProvider {
   id = "raw-artifact-provider";
   private readonly embeddedBlobs: ReturnType<typeof buildEmbeddedBlobRows>;
@@ -263,7 +269,8 @@ export class RawJsonDriver implements SourceDriver {
       const payload = await parseJson(source.path);
       if (isRecord(payload) && Array.isArray((payload as any).traceEvents)) return null;
       return { kind: "raw-json", driverId: this.id };
-    } catch {
+    } catch (error) {
+      if (shouldReportDetectionError(error)) throw error;
       return null;
     }
   }

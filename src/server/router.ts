@@ -3,7 +3,7 @@ import { resolve } from "path";
 import { loadSource } from "../loader/index.js";
 import { DEFAULT_QUERY_TIMEOUT } from "../shared/constants.js";
 import { executeQuery, QueryTimeoutError, serializeResult } from "./query-engine.js";
-import { sessionManager } from "./sessions.js";
+import { SESSION_ALIAS_PATTERN, sessionManager } from "./sessions.js";
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -58,12 +58,20 @@ async function handleLoadSession(req: Request) {
   if (!existsSync(resolved)) {
     return json({ error: `File not found: ${resolved}` }, 404);
   }
+  if (alias !== undefined) {
+    if (typeof alias !== "string" || !SESSION_ALIAS_PATTERN.test(alias)) {
+      return json(
+        {
+          error:
+            "Invalid alias: must be 1-64 alphanumeric characters, dots, hyphens, or underscores",
+        },
+        400,
+      );
+    }
+  }
 
   try {
-    const session = sessionManager.create(
-      await loadSource(resolved),
-      typeof alias === "string" ? alias : undefined,
-    );
+    const session = sessionManager.create(await loadSource(resolved), alias);
     return json(
       {
         sessionId: session.manifest.id,

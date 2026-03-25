@@ -18,10 +18,23 @@ function buildProbe(path: string): SourceProbe {
 export async function loadSource(filePath: string): Promise<DatasetSession> {
   const resolved = resolve(filePath);
   const probe = buildProbe(resolved);
+  const errors: Array<{ driver: string; error: string }> = [];
   for (const driver of drivers) {
-    const detection = await driver.detect(probe);
-    if (!detection) continue;
-    return driver.open(resolved, detection);
+    try {
+      const detection = await driver.detect(probe);
+      if (!detection) continue;
+      return await driver.open(resolved, detection);
+    } catch (error) {
+      errors.push({
+        driver: driver.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  if (errors.length > 0) {
+    throw new Error(
+      `Failed to load ${filePath}:\n${errors.map((entry) => `  ${entry.driver}: ${entry.error}`).join("\n")}`,
+    );
   }
   throw new Error(`No source driver found for: ${filePath}`);
 }
