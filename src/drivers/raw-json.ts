@@ -346,7 +346,7 @@ export class RawJsonDriver implements SourceDriver {
     try {
       const head = await peekFileText(source.path, 64 * 1024);
       const trimmed = head.trimStart();
-      if (trimmed.startsWith("{") && /"traceEvents"\s*:/.test(head)) return null;
+      if (trimmed.startsWith("{") && /"traceEvents"\s*:\s*\[/.test(head)) return null;
       if (trimmed.startsWith("[")) {
         const firstObject = extractFirstArrayObject(trimmed);
         if (firstObject) {
