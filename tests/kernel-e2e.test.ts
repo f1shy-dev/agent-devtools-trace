@@ -519,6 +519,109 @@ describe("dataset kernel e2e", () => {
     expect(requestBodiesPayload.rows[0].mediaType).toBe("application/json");
   });
 
+  it("validates report ids and keeps summary resilient", async () => {
+    const file = createTraceFile(sampleTrace());
+    const sessionId = await loadSession(file);
+
+    const interactionDefaultResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/reports/${encodeURIComponent("devtools.interaction")}`, {
+        method: "POST",
+      }),
+    );
+    expect(interactionDefaultResponse.status).toBe(200);
+    const interactionDefaultPayload = await parseJson(interactionDefaultResponse);
+    expect(interactionDefaultPayload.result.interaction.interactionId).toBe("4758");
+
+    const interactionMissingResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/reports/${encodeURIComponent("devtools.interaction")}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: "fake" }),
+      }),
+    );
+    expect(interactionMissingResponse.status).toBe(200);
+    const interactionMissingPayload = await parseJson(interactionMissingResponse);
+    expect(interactionMissingPayload.result.interaction).toBeNull();
+    expect(interactionMissingPayload.result.framePipeline).toEqual([]);
+
+    const frameAliasResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/reports/${encodeURIComponent("devtools.frame")}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: "7" }),
+      }),
+    );
+    expect(frameAliasResponse.status).toBe(200);
+    const frameAliasPayload = await parseJson(frameAliasResponse);
+    expect(frameAliasPayload.result.frame.frameSequence).toBe("7");
+
+    const frameNamedArgResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/reports/${encodeURIComponent("devtools.frame")}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ frameSequence: "7" }),
+      }),
+    );
+    expect(frameNamedArgResponse.status).toBe(200);
+    const frameNamedArgPayload = await parseJson(frameNamedArgResponse);
+    expect(frameNamedArgPayload.result.frame.frameSequence).toBe("7");
+
+    const frameMissingResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/reports/${encodeURIComponent("devtools.frame")}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: "fake" }),
+      }),
+    );
+    expect(frameMissingResponse.status).toBe(200);
+    const frameMissingPayload = await parseJson(frameMissingResponse);
+    expect(frameMissingPayload.result.frame).toBeNull();
+
+    const requestAliasResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/reports/${encodeURIComponent("devtools.request")}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: "req-1" }),
+      }),
+    );
+    expect(requestAliasResponse.status).toBe(200);
+    const requestAliasPayload = await parseJson(requestAliasResponse);
+    expect(requestAliasPayload.result.request.requestId).toBe("req-1");
+
+    const softNavigationMissingResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/reports/${encodeURIComponent("devtools.soft-navigation")}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: "fake" }),
+      }),
+    );
+    expect(softNavigationMissingResponse.status).toBe(200);
+    const softNavigationMissingPayload = await parseJson(softNavigationMissingResponse);
+    expect(softNavigationMissingPayload.result.softNavigation).toBeNull();
+    expect(softNavigationMissingPayload.result.requests).toEqual([]);
+
+    const session = sessionManager.get(sessionId) as any;
+    expect(session).toBeTruthy();
+    const originalGet = session.layers.get.bind(session.layers);
+    session.layers.get = async (key: string, signal?: AbortSignal) => {
+      if (key === "devtools/views.framePipeline") {
+        throw new Error("frame pipeline exploded");
+      }
+      return originalGet(key, signal);
+    };
+
+    const summaryResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/reports/${encodeURIComponent("devtools.summary")}`, {
+        method: "POST",
+      }),
+    );
+    expect(summaryResponse.status).toBe(200);
+    const summaryPayload = await parseJson(summaryResponse);
+    expect(summaryPayload.result.totalEvents).toBe(28);
+    expect(summaryPayload.result.frameReports).toBe(0);
+    expect(summaryPayload.result.error).toContain("frame pipeline exploded");
+  });
+
   it("supports querying through the ds runtime", async () => {
     const file = createTraceFile(sampleTrace());
     const sessionId = await loadSession(file);
