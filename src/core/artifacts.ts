@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "fs";
+import { mkdir, writeFile } from "fs/promises";
 import { dirname, join } from "path";
 import type {
   ArtifactData,
@@ -76,14 +76,14 @@ async function materializeData(
   const ext = guessExtension(artifact.mediaType);
   const fileName = `${sanitizeFilename(artifact.filenameHint ?? artifact.id)}.${ext}`;
   const path = join(dir.path, fileName);
-  mkdirSync(dir.path, { recursive: true });
+  await mkdir(dir.path, { recursive: true });
 
   if (data.kind === "text") {
-    writeFileSync(path, data.text ?? "", "utf8");
+    await writeFile(path, data.text ?? "", "utf8");
   } else if (data.kind === "json") {
-    writeFileSync(path, JSON.stringify(data.json ?? null, null, 2), "utf8");
+    await writeFile(path, JSON.stringify(data.json ?? null, null, 2), "utf8");
   } else {
-    writeFileSync(path, Buffer.from(data.bytes ?? new Uint8Array()));
+    await writeFile(path, Buffer.from(data.bytes ?? new Uint8Array()));
   }
 
   workspace.writeManifest(dir.path, {
@@ -112,6 +112,8 @@ function bufferFromArtifactData(data: ArtifactData): Buffer {
   }
   return Buffer.from(data.bytes ?? new Uint8Array());
 }
+
+const EXPORT_BATCH_SIZE = 50;
 
 export class FileMaterializer {
   constructor(
@@ -148,23 +150,34 @@ export class FileMaterializer {
 
     const dir = await this.workspace.allocExportDir(collectionId);
     const items = await collection.listItems(session, options);
-    const manifestItems: Array<FileCollectionItem & { mediaType?: string }> = [];
+    const manifestItems: Array<FileCollectionItem & { mediaType?: string; sizeBytes?: number }> =
+      [];
+    const uniqueDirs = new Set(items.map((item) => dirname(join(dir.path, item.relativePath))));
+    await Promise.all([...uniqueDirs].map((path) => mkdir(path, { recursive: true })));
 
-    for (const item of items) {
-      const artifact = await this.artifactStore.get(session, item.artifactId);
-      const data = await this.artifactStore.read(session, item.artifactId);
-      if (!artifact || !data) {
-        continue;
-      }
+    for (let index = 0; index < items.length; index += EXPORT_BATCH_SIZE) {
+      const batch = items.slice(index, index + EXPORT_BATCH_SIZE);
+      const results = await Promise.all(
+        batch.map(async (item) => {
+          const artifact = await this.artifactStore.get(session, item.artifactId);
+          const data = await this.artifactStore.read(session, item.artifactId);
+          if (!artifact || !data) {
+            return null;
+          }
 
-      const targetPath = join(dir.path, item.relativePath);
-      mkdirSync(dirname(targetPath), { recursive: true });
-      writeFileSync(targetPath, bufferFromArtifactData(data));
-      manifestItems.push({
-        ...item,
-        mediaType: artifact.mediaType,
-        sizeBytes: artifact.sizeBytes,
-      } as FileCollectionItem & { mediaType?: string; sizeBytes?: number });
+          const targetPath = join(dir.path, item.relativePath);
+          await writeFile(targetPath, bufferFromArtifactData(data));
+
+          return {
+            ...item,
+            mediaType: artifact.mediaType,
+            sizeBytes: artifact.sizeBytes,
+          } satisfies FileCollectionItem & { mediaType?: string; sizeBytes?: number };
+        }),
+      );
+      manifestItems.push(
+        ...results.filter((result): result is NonNullable<typeof result> => result !== null),
+      );
     }
 
     const manifestPath = this.workspace.writeManifest(dir.path, {

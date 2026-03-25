@@ -1765,19 +1765,29 @@ async function buildSoftNavigationReport(session: DatasetSession, args?: Record<
 }
 
 async function buildInteractionReport(session: DatasetSession, args?: Record<string, unknown>) {
-  const [trace, interactions, renderMeasures, framePipeline, requests, layoutShifts, softNavigations, screenshots, codeHotspots, cpuHotspots] =
-    await Promise.all([
-      session.layers.get<ParsedTrace>("devtools/trace"),
-      session.layers.get<any[]>("devtools/dims.interactions"),
-      session.layers.get<any[]>("devtools/views.renderMeasures"),
-      session.layers.get<any[]>("devtools/views.framePipeline"),
-      session.layers.get<any[]>("devtools/dims.requests"),
-      session.layers.get<any[]>("devtools/dims.layoutShifts"),
-      session.layers.get<any[]>("devtools/dims.softNavigations"),
-      session.layers.get<any[]>("devtools/dims.screenshots"),
-      session.layers.get<any[]>("devtools/views.codeHotspots"),
-      session.layers.get<any[]>("devtools/views.interactionCpuHotspots"),
-    ]);
+  const [
+    trace,
+    interactions,
+    renderMeasures,
+    framePipeline,
+    requests,
+    layoutShifts,
+    softNavigations,
+    screenshots,
+    codeHotspots,
+    cpuHotspots,
+  ] = await Promise.all([
+    session.layers.get<ParsedTrace>("devtools/trace"),
+    session.layers.get<any[]>("devtools/dims.interactions"),
+    session.layers.get<any[]>("devtools/views.renderMeasures"),
+    session.layers.get<any[]>("devtools/views.framePipeline"),
+    session.layers.get<any[]>("devtools/dims.requests"),
+    session.layers.get<any[]>("devtools/dims.layoutShifts"),
+    session.layers.get<any[]>("devtools/dims.softNavigations"),
+    session.layers.get<any[]>("devtools/dims.screenshots"),
+    session.layers.get<any[]>("devtools/views.codeHotspots"),
+    session.layers.get<any[]>("devtools/views.interactionCpuHotspots"),
+  ]);
   const interactionId = typeof args?.id === "string" ? args.id : undefined;
   const target = interactionId
     ? interactions.find((row) => row.interactionId === interactionId)
@@ -1846,7 +1856,9 @@ async function buildInteractionReport(session: DatasetSession, args?: Record<str
   const interactionCpuHotspots = cpuHotspots
     .filter((row) => row.scopeId === target.interactionId)
     .slice(0, 20);
-  const droppedFrames = interactionFramePipeline.filter((row) => row.state === "STATE_DROPPED").length;
+  const droppedFrames = interactionFramePipeline.filter(
+    (row) => row.state === "STATE_DROPPED",
+  ).length;
   return {
     interaction: {
       ...target,
@@ -1892,13 +1904,11 @@ async function prettyInteractionReport(session: DatasetSession, args?: Record<st
       "",
       "cpu hotspots",
       tableValue(
-        report.cpuHotspots
-          .slice(0, 10)
-          .map((row: any) => ({
-            functionName: row.functionName,
-            totalTimeMs: row.totalTimeMs,
-            sampleCount: row.sampleCount,
-          })),
+        report.cpuHotspots.slice(0, 10).map((row: any) => ({
+          functionName: row.functionName,
+          totalTimeMs: row.totalTimeMs,
+          sampleCount: row.sampleCount,
+        })),
       ),
     );
   }
@@ -1941,25 +1951,21 @@ async function prettyHotspotsReport(session: DatasetSession) {
   return [
     "code hotspots",
     tableValue(
-      report.codeHotspots
-        .slice(0, 10)
-        .map((row: any) => ({
-          functionName: row.functionName,
-          totalDurationMs: row.totalDurationMs,
-          count: row.count,
-        })),
+      report.codeHotspots.slice(0, 10).map((row: any) => ({
+        functionName: row.functionName,
+        totalDurationMs: row.totalDurationMs,
+        count: row.count,
+      })),
     ),
     "",
     "cpu hotspots",
     tableValue(
-      report.cpuHotspots
-        .slice(0, 10)
-        .map((row: any) => ({
-          functionName: row.functionName,
-          selfTimeMs: row.selfTimeMs,
-          totalTimeMs: row.totalTimeMs,
-          sampleCount: row.sampleCount,
-        })),
+      report.cpuHotspots.slice(0, 10).map((row: any) => ({
+        functionName: row.functionName,
+        selfTimeMs: row.selfTimeMs,
+        totalTimeMs: row.totalTimeMs,
+        sampleCount: row.sampleCount,
+      })),
     ),
   ].join("\n");
 }
@@ -2034,7 +2040,8 @@ class DevtoolsArtifactProvider implements ArtifactProvider {
         })),
       ...requestBodies.map<ArtifactRef>((row) => ({
         id: row.artifactId,
-        kind: row.decodedKind === "binary" ? "binary" : row.decodedKind === "json" ? "json" : "text",
+        kind:
+          row.decodedKind === "binary" ? "binary" : row.decodedKind === "json" ? "json" : "text",
         mediaType: row.mediaType,
         sizeBytes: row.sizeBytes,
         filenameHint: row.filename,
