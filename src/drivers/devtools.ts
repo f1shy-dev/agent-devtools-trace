@@ -959,10 +959,7 @@ function buildSoftNavigations(trace: ParsedTrace, tasks: ReturnType<typeof build
     .sort((a, b) => a.startTsUs - b.startTsUs);
 }
 
-function buildFramePipeline(
-  trace: ParsedTrace,
-  screenshots: ReturnType<typeof buildScreenshots>,
-) {
+function buildFramePipeline(trace: ParsedTrace, screenshots: ReturnType<typeof buildScreenshots>) {
   const screenshotsByFrameSeq = new Map(
     screenshots
       .filter((row) => row.frameSeqId)
@@ -1375,35 +1372,61 @@ function buildCpuHotspots(trace: ParsedTrace, cpuNodes: ReturnType<typeof buildC
     );
 }
 
+function ensureCpuSamplesSortedByTsUs(samples: ReturnType<typeof buildCpuSampleFacts>) {
+  for (let i = 1; i < samples.length; i += 1) {
+    const previous = samples[i - 1]!;
+    const current = samples[i]!;
+    if (
+      previous.tsUs > current.tsUs ||
+      (previous.tsUs === current.tsUs && previous.sampleId.localeCompare(current.sampleId) > 0)
+    ) {
+      return [...samples].sort((a, b) => a.tsUs - b.tsUs || a.sampleId.localeCompare(b.sampleId));
+    }
+  }
+  return samples;
+}
+
+function lowerBound(samples: ReturnType<typeof buildCpuSampleFacts>, targetTsUs: number): number {
+  let lo = 0;
+  let hi = samples.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (samples[mid]!.tsUs < targetTsUs) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
 function aggregateCpuHotspotsForWindow(
-  samples: ReturnType<typeof buildCpuSampleFacts>,
+  sortedSamples: ReturnType<typeof buildCpuSampleFacts>,
   startTsUs: number,
   endTsUs: number,
   scope: string,
   scopeId: string,
 ) {
   const groups = new Map<string, any>();
-  samples
-    .filter((sample: any) => sample.tsUs >= startTsUs && sample.tsUs <= endTsUs)
-    .forEach((sample: any) => {
-      const key = `${sample.nodeId}|${sample.functionName}|${sample.url ?? ""}`;
-      if (!groups.has(key)) {
-        groups.set(key, {
-          scopeId,
-          nodeId: sample.nodeId,
-          functionName: sample.functionName,
-          url: sample.url,
-          scriptId: sample.scriptId,
-          sampleCount: 0,
-          totalTimeMs: 0,
-          rawEventIds: [] as string[],
-        });
-      }
-      const row = groups.get(key)!;
-      row.sampleCount += 1;
-      row.totalTimeMs += sample.timeDeltaUs / 1000;
-      row.rawEventIds.push(...sample.rawEventIds);
-    });
+  const startIdx = lowerBound(sortedSamples, startTsUs);
+  for (let i = startIdx; i < sortedSamples.length; i += 1) {
+    const sample = sortedSamples[i]!;
+    if (sample.tsUs > endTsUs) break;
+    const key = `${sample.nodeId}|${sample.functionName}|${sample.url ?? ""}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        scopeId,
+        nodeId: sample.nodeId,
+        functionName: sample.functionName,
+        url: sample.url,
+        scriptId: sample.scriptId,
+        sampleCount: 0,
+        totalTimeMs: 0,
+        rawEventIds: [] as string[],
+      });
+    }
+    const row = groups.get(key)!;
+    row.sampleCount += 1;
+    row.totalTimeMs += sample.timeDeltaUs / 1000;
+    row.rawEventIds.push(...sample.rawEventIds);
+  }
   return [...groups.values()]
     .map((row) => ({
       ...row,
@@ -1418,9 +1441,10 @@ function buildInteractionCpuHotspots(
   interactions: ReturnType<typeof buildInteractions>,
   cpuSamples: ReturnType<typeof buildCpuSampleFacts>,
 ) {
+  const sortedSamples = ensureCpuSamplesSortedByTsUs(cpuSamples);
   return interactions.flatMap((interaction) =>
     aggregateCpuHotspotsForWindow(
-      cpuSamples,
+      sortedSamples,
       interaction.startTsUs,
       interaction.endTsUs,
       "interaction",
@@ -1434,9 +1458,10 @@ function buildTaskCpuHotspots(
   tasks: ReturnType<typeof buildMainThreadTasks>,
   cpuSamples: ReturnType<typeof buildCpuSampleFacts>,
 ) {
+  const sortedSamples = ensureCpuSamplesSortedByTsUs(cpuSamples);
   return tasks.flatMap((task) =>
     aggregateCpuHotspotsForWindow(
-      cpuSamples,
+      sortedSamples,
       task.tsUs,
       task.tsUs + task.durationMs * 1000,
       "task",
@@ -1594,10 +1619,7 @@ function buildInteractionRenders(
     );
 }
 
-function buildNetworkWaterfall(
-  trace: ParsedTrace,
-  requests: ReturnType<typeof buildRequests>,
-) {
+function buildNetworkWaterfall(trace: ParsedTrace, requests: ReturnType<typeof buildRequests>) {
   const { minTs } = getTraceBounds(trace.traceEvents);
   return requests.map((row, index) => ({
     requestWaterfallId: `request-waterfall:${index}`,
@@ -1653,10 +1675,7 @@ function buildLayoutShiftClusters(
     .sort((a, b) => b.totalScore - a.totalScore || a.startTsUs - b.startTsUs);
 }
 
-function buildRequestBodies(
-  trace: ParsedTrace,
-  requests: ReturnType<typeof buildRequests>,
-) {
+function buildRequestBodies(trace: ParsedTrace, requests: ReturnType<typeof buildRequests>) {
   const requestsById = new Map(requests.map((row) => [row.requestId, row] as const));
   const rows: any[] = [];
   trace.traceEvents.forEach((event, index) => {
@@ -2157,13 +2176,16 @@ class DevtoolsArtifactProvider implements ArtifactProvider {
       : [];
     const scriptSourceTexts = new Map<string, string>();
     this.trace.traceEvents.forEach((event) => {
-      const data = isRecord(event.args?.data) ? (event.args!.data as Record<string, any>) : undefined;
+      const data = isRecord(event.args?.data)
+        ? (event.args!.data as Record<string, any>)
+        : undefined;
       const scriptId = canonicalId(data?.scriptId);
       const sourceText = getNestedString(data?.sourceText);
       if (!scriptId || sourceText === undefined || scriptSourceTexts.has(scriptId)) return;
       scriptSourceTexts.set(scriptId, sourceText);
     });
-    const hashBytes = (value: Buffer | Uint8Array) => createHash("sha256").update(value).digest("hex");
+    const hashBytes = (value: Buffer | Uint8Array) =>
+      createHash("sha256").update(value).digest("hex");
     const hashText = (value: string) => createHash("sha256").update(value, "utf8").digest("hex");
     this.cachedScreenshots = new Map(screenshots.map((row) => [row.index, row]));
     this.cachedRequestBodies = new Map(requestBodies.map((row) => [row.artifactId, row]));
@@ -2186,7 +2208,9 @@ class DevtoolsArtifactProvider implements ArtifactProvider {
             kind: "text",
             mediaType: "text/javascript",
             sizeBytes:
-              sourceText !== undefined ? Buffer.byteLength(sourceText, "utf8") : row.sourceTextBytes,
+              sourceText !== undefined
+                ? Buffer.byteLength(sourceText, "utf8")
+                : row.sourceTextBytes,
             filenameHint: `${row.scriptId}-${basename(row.url ?? `script-${row.scriptId}`)}`,
             hash: sourceText !== undefined ? hashText(sourceText) : undefined,
             metadata: { scriptId: row.scriptId, url: row.url },
@@ -2209,9 +2233,10 @@ class DevtoolsArtifactProvider implements ArtifactProvider {
         .filter((row) => row.artifactId)
         .map<ArtifactRef>((row) => {
           const [, , , mapIndexText, sourceIndexText] = row.artifactId!.split(":");
-          const content = traceSourceMaps[Number(mapIndexText)]?.sourceMap?.sourcesContent?.[
-            Number(sourceIndexText)
-          ];
+          const content =
+            traceSourceMaps[Number(mapIndexText)]?.sourceMap?.sourcesContent?.[
+              Number(sourceIndexText)
+            ];
           const textContent = typeof content === "string" ? content : undefined;
           return {
             id: row.artifactId!,
@@ -2563,7 +2588,8 @@ export class DevtoolsDriver implements SourceDriver {
     session.layers.register({
       key: "devtools/facts.asyncFlows",
       deps: ["devtools/trace", "devtools/facts.events"],
-      build: async (ctx) => buildAsyncFlowFacts(trace, await ctx.get<any[]>("devtools/facts.events")),
+      build: async (ctx) =>
+        buildAsyncFlowFacts(trace, await ctx.get<any[]>("devtools/facts.events")),
     });
     session.layers.register({
       key: "devtools/facts.objectLifecycles",
@@ -2575,7 +2601,8 @@ export class DevtoolsDriver implements SourceDriver {
       key: "devtools/internal.cpuModel",
       deps: ["devtools/trace", "devtools/dims.scripts"],
       weight: "heavy",
-      build: async (ctx) => buildCpuProfileModel(trace, await ctx.get<any[]>("devtools/dims.scripts")),
+      build: async (ctx) =>
+        buildCpuProfileModel(trace, await ctx.get<any[]>("devtools/dims.scripts")),
     });
     session.layers.register({
       key: "devtools/facts.cpuSamples",
@@ -2649,7 +2676,8 @@ export class DevtoolsDriver implements SourceDriver {
     session.layers.register({
       key: "devtools/dims.tasks",
       deps: ["devtools/trace", "devtools/facts.events"],
-      build: async (ctx) => buildMainThreadTasks(trace, await ctx.get<any[]>("devtools/facts.events")),
+      build: async (ctx) =>
+        buildMainThreadTasks(trace, await ctx.get<any[]>("devtools/facts.events")),
     });
     session.layers.register({
       key: "devtools/dims.scripts",
@@ -2671,7 +2699,8 @@ export class DevtoolsDriver implements SourceDriver {
       key: "devtools/dims.cpuNodes",
       deps: ["devtools/internal.cpuModel"],
       weight: "heavy",
-      build: async (ctx) => buildCpuNodeRows(trace, await ctx.get<any>("devtools/internal.cpuModel")),
+      build: async (ctx) =>
+        buildCpuNodeRows(trace, await ctx.get<any>("devtools/internal.cpuModel")),
     });
     session.layers.register({
       key: "devtools/views.renderMeasures",
@@ -2720,13 +2749,15 @@ export class DevtoolsDriver implements SourceDriver {
       key: "devtools/views.cpuCallTrees",
       deps: ["devtools/internal.cpuModel"],
       weight: "heavy",
-      build: async (ctx) => buildCpuCallTrees(trace, await ctx.get<any>("devtools/internal.cpuModel")),
+      build: async (ctx) =>
+        buildCpuCallTrees(trace, await ctx.get<any>("devtools/internal.cpuModel")),
     });
     session.layers.register({
       key: "devtools/views.cpuTimeline",
       deps: ["devtools/internal.cpuModel"],
       weight: "heavy",
-      build: async (ctx) => buildCpuTimeline(trace, await ctx.get<any>("devtools/internal.cpuModel")),
+      build: async (ctx) =>
+        buildCpuTimeline(trace, await ctx.get<any>("devtools/internal.cpuModel")),
     });
     session.layers.register({
       key: "devtools/views.interactionCpuHotspots",
