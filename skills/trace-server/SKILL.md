@@ -259,6 +259,18 @@ See `adapters/raw-json.md` for the full catalog.
 
 Key surfaces: schema path discovery, inferred tables, embedded blob extraction, raw document access.
 
+### Vite bundle analyzer (`.json`)
+
+See `adapters/vite-bundle.md` for the full table/report catalog.
+
+Key surfaces: chunks with stat/gzip/brotli sizes, hierarchical source module tree, package aggregation, chunk import graph, duplicate module detection.
+
+### Next.js Turbopack bundle analyzer (directory)
+
+See `adapters/nextjs-bundle.md` for the full table/report catalog.
+
+Key surfaces: per-route bundle analysis, source-to-output-file mapping with sizes, module dependency graph (sync + async), environment breakdown (server/client), package aggregation.
+
 ---
 
 ## Common mistakes to avoid

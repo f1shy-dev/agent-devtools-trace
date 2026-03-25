@@ -1,10 +1,17 @@
 import { statSync } from "fs";
 import { resolve } from "path";
 import { DevtoolsDriver } from "../drivers/devtools.js";
+import { ViteBundleDriver } from "../drivers/vite-bundle.js";
+import { NextjsBundleDriver } from "../drivers/nextjs-bundle.js";
 import { RawJsonDriver } from "../drivers/raw-json.js";
 import type { DatasetSession, SourceDriver, SourceProbe } from "../core/types.js";
 
-const drivers: SourceDriver[] = [new DevtoolsDriver(), new RawJsonDriver()];
+const drivers: SourceDriver[] = [
+  new DevtoolsDriver(),
+  new ViteBundleDriver(),
+  new NextjsBundleDriver(),
+  new RawJsonDriver(),
+];
 
 function buildProbe(path: string): SourceProbe {
   const stat = statSync(path);
