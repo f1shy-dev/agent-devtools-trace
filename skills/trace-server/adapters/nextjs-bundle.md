@@ -2,6 +2,31 @@
 
 Use this guide for Next.js Turbopack bundle analyzer directories loaded into the dataset kernel. For the complete typed API (method signatures, interfaces, filter operators), see **`../reference.md`**.
 
+## Generating the trace
+
+The Next.js Turbopack bundle analyzer is built into Next.js 16.1+. Run:
+
+```bash
+npx next experimental-analyze --output
+```
+
+This builds the project with Turbopack's analyzer and writes results to `.next/diagnostics/analyze/`. The `--output` flag writes to disk instead of starting an interactive server.
+
+Load the `data/` subdirectory:
+
+```bash
+trace-server load .next/diagnostics/analyze/data --alias mynextapp
+```
+
+Other useful flags:
+- `--no-mangling` — disable identifier mangling (for debugging)
+- `--profile` — enable CPU profiling
+- `--port <port>` — set the interactive server port (when not using `--output`)
+- `--experimental-app-only` — analyze only the App Router
+
+Without `--output`, the command starts an interactive server at `http://localhost:4000` with a treemap UI.
+
+
 Supported inputs:
 - analyzer output directory containing `analyze.data`
 - optional `modules.data`

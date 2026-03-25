@@ -2,6 +2,43 @@
 
 Use this guide for `vite-bundle-analyzer` JSON outputs loaded into the dataset kernel. For the complete typed API (method signatures, interfaces, filter operators), see **`../reference.md`**.
 
+## Generating the trace
+
+Add `vite-bundle-analyzer` to your Vite project and configure it to output JSON:
+
+```bash
+npm install -D vite-bundle-analyzer
+```
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite'
+import { analyzer } from 'vite-bundle-analyzer'
+
+export default defineConfig({
+  plugins: [
+    analyzer({
+      analyzerMode: 'json',   // outputs stats.json to the build output dir
+      fileName: 'stats',      // optional: customize filename (default: stats)
+    }),
+  ],
+})
+```
+
+Then build your project:
+```bash
+npm run build
+```
+
+The analyzer writes `stats.json` (or `stats.html` in `static` mode) to the build output directory (usually `dist/`). Load the JSON file directly:
+
+```bash
+trace-server load dist/stats.json --alias mybundle
+```
+
+Other `analyzerMode` options: `'server'` (live UI), `'static'` (HTML file), or a custom callback function. Only `'json'` mode produces a file compatible with this driver.
+
+
 Supported inputs:
 - `.json`
 
