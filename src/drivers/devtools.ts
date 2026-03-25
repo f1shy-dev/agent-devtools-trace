@@ -1573,74 +1573,92 @@ function buildRequestBodies(trace: ParsedTrace) {
 }
 
 async function buildSummary(session: DatasetSession) {
-  const [
-    trace,
-    facts,
-    indexes,
-    processes,
-    screenshots,
-    requests,
-    requestBodies,
-    interactions,
-    scripts,
-    sourceMaps,
-    sources,
-    frames,
-    workers,
-    layoutShifts,
-    layoutShiftClusters,
-    softNavigations,
-    framePipeline,
-    codeHotspots,
-    cpuHotspots,
-    cpuSamples,
-  ] = await Promise.all([
-    session.layers.get<ParsedTrace>("devtools/trace"),
-    session.layers.get<any[]>("devtools/facts.events"),
-    session.layers.get<any>("devtools/indexes.basic"),
-    session.layers.get<any[]>("devtools/dims.processes"),
-    session.layers.get<any[]>("devtools/dims.screenshots"),
-    session.layers.get<any[]>("devtools/dims.requests"),
-    session.layers.get<any[]>("devtools/dims.requestBodies"),
-    session.layers.get<any[]>("devtools/dims.interactions"),
-    session.layers.get<any[]>("devtools/dims.scripts"),
-    session.layers.get<any[]>("code/dims.sourceMaps"),
-    session.layers.get<any[]>("code/dims.sources"),
-    session.layers.get<any[]>("devtools/dims.frames"),
-    session.layers.get<any[]>("devtools/dims.workers"),
-    session.layers.get<any[]>("devtools/dims.layoutShifts"),
-    session.layers.get<any[]>("devtools/views.layoutShiftClusters"),
-    session.layers.get<any[]>("devtools/dims.softNavigations"),
-    session.layers.get<any[]>("devtools/views.framePipeline"),
-    session.layers.get<any[]>("devtools/views.codeHotspots"),
-    session.layers.get<any[]>("devtools/views.cpuHotspots"),
-    session.layers.get<any[]>("devtools/facts.cpuSamples"),
-  ]);
-  const { minTs, maxTs } = getTraceBounds(trace.traceEvents);
-  return {
-    totalEvents: trace.traceEvents.length,
-    durationMs: (maxTs - minTs) / 1000,
-    categories: indexes.byCategory.size,
-    threads: indexes.byThread.size,
-    processes: processes.length,
-    screenshots: screenshots.length,
-    networkRequests: requests.length,
-    networkBodies: requestBodies.length,
-    interactions: interactions.length,
-    scripts: scripts.length,
-    sourceMaps: sourceMaps.length,
-    sources: sources.length,
-    frames: frames.length,
-    workers: workers.length,
-    layoutShifts: layoutShifts.length,
-    layoutShiftClusters: layoutShiftClusters.length,
-    softNavigations: softNavigations.length,
-    frameReports: framePipeline.length,
-    codeHotspots: codeHotspots.length,
-    cpuHotspots: cpuHotspots.length,
-    cpuSamples: cpuSamples.length,
-    facts: facts.length,
+  const errors: string[] = [];
+  const getLayer = async <T>(key: string, fallback: T): Promise<T> => {
+    try {
+      return await session.layers.get<T>(key);
+    } catch (error) {
+      errors.push(`${key}: ${error instanceof Error ? error.message : String(error)}`);
+      return fallback;
+    }
   };
+
+  try {
+    const trace = await getLayer<ParsedTrace | null>("devtools/trace", null);
+    const facts = await getLayer<any[]>("devtools/facts.events", []);
+    const indexes = await getLayer<any | null>("devtools/indexes.basic", null);
+    const processes = await getLayer<any[]>("devtools/dims.processes", []);
+    const screenshots = await getLayer<any[]>("devtools/dims.screenshots", []);
+    const requests = await getLayer<any[]>("devtools/dims.requests", []);
+    const requestBodies = await getLayer<any[]>("devtools/dims.requestBodies", []);
+    const interactions = await getLayer<any[]>("devtools/dims.interactions", []);
+    const scripts = await getLayer<any[]>("devtools/dims.scripts", []);
+    const sourceMaps = await getLayer<any[]>("code/dims.sourceMaps", []);
+    const sources = await getLayer<any[]>("code/dims.sources", []);
+    const frames = await getLayer<any[]>("devtools/dims.frames", []);
+    const workers = await getLayer<any[]>("devtools/dims.workers", []);
+    const layoutShifts = await getLayer<any[]>("devtools/dims.layoutShifts", []);
+    const layoutShiftClusters = await getLayer<any[]>("devtools/views.layoutShiftClusters", []);
+    const softNavigations = await getLayer<any[]>("devtools/dims.softNavigations", []);
+    const framePipeline = await getLayer<any[]>("devtools/views.framePipeline", []);
+    const codeHotspots = await getLayer<any[]>("devtools/views.codeHotspots", []);
+    const cpuHotspots = await getLayer<any[]>("devtools/views.cpuHotspots", []);
+    const cpuSamples = await getLayer<any[]>("devtools/facts.cpuSamples", []);
+    const traceEvents = trace?.traceEvents ?? [];
+    const { minTs, maxTs } =
+      traceEvents.length > 0 ? getTraceBounds(traceEvents) : { minTs: 0, maxTs: 0 };
+    return {
+      ...(errors.length > 0 ? { error: errors.join("; ") } : {}),
+      totalEvents: traceEvents.length,
+      durationMs: traceEvents.length > 0 ? (maxTs - minTs) / 1000 : 0,
+      categories: indexes?.byCategory?.size ?? 0,
+      threads: indexes?.byThread?.size ?? 0,
+      processes: processes.length,
+      screenshots: screenshots.length,
+      networkRequests: requests.length,
+      networkBodies: requestBodies.length,
+      interactions: interactions.length,
+      scripts: scripts.length,
+      sourceMaps: sourceMaps.length,
+      sources: sources.length,
+      frames: frames.length,
+      workers: workers.length,
+      layoutShifts: layoutShifts.length,
+      layoutShiftClusters: layoutShiftClusters.length,
+      softNavigations: softNavigations.length,
+      frameReports: framePipeline.length,
+      codeHotspots: codeHotspots.length,
+      cpuHotspots: cpuHotspots.length,
+      cpuSamples: cpuSamples.length,
+      facts: facts.length,
+    };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : String(error),
+      totalEvents: 0,
+      durationMs: 0,
+      categories: 0,
+      threads: 0,
+      processes: 0,
+      screenshots: 0,
+      networkRequests: 0,
+      networkBodies: 0,
+      interactions: 0,
+      scripts: 0,
+      sourceMaps: 0,
+      sources: 0,
+      frames: 0,
+      workers: 0,
+      layoutShifts: 0,
+      layoutShiftClusters: 0,
+      softNavigations: 0,
+      frameReports: 0,
+      codeHotspots: 0,
+      cpuHotspots: 0,
+      cpuSamples: 0,
+      facts: 0,
+    };
+  }
 }
 
 async function buildHotspotsReport(session: DatasetSession) {
@@ -1701,10 +1719,21 @@ async function buildFrameReport(session: DatasetSession, args?: Record<string, u
     session.layers.get<any[]>("devtools/dims.screenshots"),
     session.layers.get<any[]>("devtools/views.visualChanges"),
   ]);
-  const frameSequence = typeof args?.frameSequence === "string" ? args.frameSequence : undefined;
-  const frame = frameSequence
-    ? framePipeline.find((row) => row.frameSequence === frameSequence)
-    : framePipeline[0];
+  const frameSequence =
+    typeof args?.frameSequence === "string"
+      ? args.frameSequence
+      : typeof args?.id === "string"
+        ? args.id
+        : undefined;
+  let frame;
+  if (frameSequence) {
+    frame = framePipeline.find((row) => row.frameSequence === frameSequence);
+    if (!frame) {
+      return { frame: null, screenshot: null, visualChanges: [] };
+    }
+  } else {
+    frame = framePipeline[0];
+  }
   if (!frame) {
     return { frame: null, screenshot: null, visualChanges: [] };
   }
@@ -1722,7 +1751,12 @@ async function buildRequestReport(session: DatasetSession, args?: Record<string,
     session.layers.get<any[]>("devtools/dims.requests"),
     session.layers.get<any[]>("devtools/views.visualChanges"),
   ]);
-  const requestId = typeof args?.requestId === "string" ? args.requestId : undefined;
+  const requestId =
+    typeof args?.requestId === "string"
+      ? args.requestId
+      : typeof args?.id === "string"
+        ? args.id
+        : undefined;
   const url = typeof args?.url === "string" ? args.url : undefined;
   const request = requestId
     ? requests.find((row) => row.requestId === requestId)
@@ -1747,10 +1781,20 @@ async function buildSoftNavigationReport(session: DatasetSession, args?: Record<
     session.layers.get<any[]>("devtools/dims.requests"),
   ]);
   const softNavigationId =
-    typeof args?.softNavigationId === "string" ? args.softNavigationId : undefined;
-  const softNavigation = softNavigationId
-    ? softNavigations.find((row) => row.softNavigationId === softNavigationId)
-    : softNavigations[0];
+    typeof args?.softNavigationId === "string"
+      ? args.softNavigationId
+      : typeof args?.id === "string"
+        ? args.id
+        : undefined;
+  let softNavigation;
+  if (softNavigationId) {
+    softNavigation = softNavigations.find((row) => row.softNavigationId === softNavigationId);
+    if (!softNavigation) {
+      return { softNavigation: null, layoutShifts: [], screenshots: [], requests: [] };
+    }
+  } else {
+    softNavigation = softNavigations[0];
+  }
   if (!softNavigation) {
     return { softNavigation: null, layoutShifts: [], screenshots: [], requests: [] };
   }
@@ -1770,48 +1814,51 @@ async function buildSoftNavigationReport(session: DatasetSession, args?: Record<
 }
 
 async function buildInteractionReport(session: DatasetSession, args?: Record<string, unknown>) {
+  const emptyReport = () => ({
+    interaction: null,
+    renders: [],
+    topComponents: [],
+    eventDispatches: [],
+    droppedFrames: 0,
+    requests: [],
+    layoutShifts: [],
+    softNavigations: [],
+    screenshots: [],
+    framePipeline: [],
+    codeHotspots: [],
+    cpuHotspots: [],
+  });
+  const interactions = await session.layers.get<any[]>("devtools/dims.interactions");
+  const interactionId = typeof args?.id === "string" ? args.id : undefined;
+  let target;
+  if (interactionId) {
+    target = interactions.find((row) => row.interactionId === interactionId);
+    if (!target) {
+      return emptyReport();
+    }
+  } else {
+    target = interactions[0];
+  }
+  if (!target) {
+    return emptyReport();
+  }
   const [
-    trace,
-    interactions,
     renderMeasures,
     framePipeline,
     requests,
     layoutShifts,
     softNavigations,
     screenshots,
-    codeHotspots,
     cpuHotspots,
   ] = await Promise.all([
-    session.layers.get<ParsedTrace>("devtools/trace"),
-    session.layers.get<any[]>("devtools/dims.interactions"),
     session.layers.get<any[]>("devtools/views.renderMeasures"),
     session.layers.get<any[]>("devtools/views.framePipeline"),
     session.layers.get<any[]>("devtools/dims.requests"),
     session.layers.get<any[]>("devtools/dims.layoutShifts"),
     session.layers.get<any[]>("devtools/dims.softNavigations"),
     session.layers.get<any[]>("devtools/dims.screenshots"),
-    session.layers.get<any[]>("devtools/views.codeHotspots"),
     session.layers.get<any[]>("devtools/views.interactionCpuHotspots"),
   ]);
-  const interactionId = typeof args?.id === "string" ? args.id : undefined;
-  const target = interactionId
-    ? interactions.find((row) => row.interactionId === interactionId)
-    : interactions[0];
-  if (!target) {
-    return {
-      interaction: null,
-      renders: [],
-      topComponents: [],
-      eventDispatches: [],
-      droppedFrames: 0,
-      requests: [],
-      layoutShifts: [],
-      softNavigations: [],
-      screenshots: [],
-      codeHotspots: [],
-      cpuHotspots: [],
-    };
-  }
   const interactionRenderMeasures = renderMeasures.filter(
     (row) => row.tsUs >= target.startTsUs && row.tsUs <= target.endTsUs,
   );
@@ -1820,20 +1867,7 @@ async function buildInteractionReport(session: DatasetSession, args?: Record<str
     if (!row.componentName) continue;
     componentCounts.set(row.componentName, (componentCounts.get(row.componentName) ?? 0) + 1);
   }
-  const eventDispatches = trace.traceEvents
-    .map((event, index) => ({ event, index }))
-    .filter(
-      ({ event }) =>
-        event.name === "EventDispatch" &&
-        event.ts >= target.startTsUs - 5_000 &&
-        event.ts <= target.endTsUs + 5_000,
-    )
-    .map(({ event, index }) => ({
-      eventId: `evt:${index}`,
-      type: getNestedString(event.args?.data?.type) ?? "unknown",
-      tsUs: event.ts,
-      durMs: (event.dur ?? 0) / 1000,
-    }));
+  const eventDispatches: any[] = [];
   const interactionFramePipeline = framePipeline.filter(
     (row) => row.tsUs >= target.startTsUs && row.tsUs <= target.endTsUs,
   );
@@ -1849,15 +1883,8 @@ async function buildInteractionReport(session: DatasetSession, args?: Record<str
   const interactionScreenshots = screenshots.filter(
     (row) => row.tsUs >= target.startTsUs && row.tsUs <= target.endTsUs,
   );
-  const interactionCodeHotspots = codeHotspots
-    .filter((row) =>
-      row.rawEventIds.some((eventId: string) => {
-        const rawIndex = Number(String(eventId).replace("evt:", ""));
-        const event = trace.traceEvents[rawIndex];
-        return event && event.ts >= target.startTsUs && event.ts <= target.endTsUs;
-      }),
-    )
-    .slice(0, 20);
+  const codeHotspots = await session.layers.get<any[]>("devtools/views.codeHotspots");
+  const interactionCodeHotspots = codeHotspots.slice(0, 20);
   const interactionCpuHotspots = cpuHotspots
     .filter((row) => row.scopeId === target.interactionId)
     .slice(0, 20);
