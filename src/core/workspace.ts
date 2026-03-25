@@ -153,19 +153,31 @@ export function sanitizeFilename(value: string) {
 }
 
 export function guessExtension(mediaType: string, fallback = "bin") {
-  switch (mediaType) {
-    case "image/jpeg":
-      return "jpg";
-    case "image/png":
-      return "png";
-    case "application/json":
-    case "application/source-map+json":
-      return "json";
-    case "text/javascript":
-      return "js";
-    case "text/plain":
-      return "txt";
-    default:
-      return fallback;
-  }
+  const normalized = mediaType.split(";")[0]?.trim().toLowerCase();
+  const extensions: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/gif": "gif",
+    "image/webp": "webp",
+    "image/svg+xml": "svg",
+    "image/bmp": "bmp",
+    "image/x-icon": "ico",
+    "image/avif": "avif",
+    "application/json": "json",
+    "application/source-map+json": "json",
+    "application/pdf": "pdf",
+    "application/xml": "xml",
+    "application/zip": "zip",
+    "application/gzip": "gz",
+    "application/wasm": "wasm",
+    "text/javascript": "js",
+    "text/plain": "txt",
+    "text/html": "html",
+    "text/css": "css",
+    "text/xml": "xml",
+    "text/csv": "csv",
+    "font/woff": "woff",
+    "font/woff2": "woff2",
+  };
+  return (normalized && extensions[normalized]) ?? fallback;
 }

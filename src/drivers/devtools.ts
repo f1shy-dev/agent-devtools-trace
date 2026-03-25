@@ -2032,6 +2032,19 @@ class DevtoolsArtifactProvider implements ArtifactProvider {
     const sourceMaps = buildSourceMaps(this.trace);
     const sources = buildSources(this.trace);
     const requestBodies = buildRequestBodies(this.trace);
+    const traceSourceMaps = Array.isArray(this.trace.metadata.sourceMaps)
+      ? (this.trace.metadata.sourceMaps as SourceMapEntry[])
+      : [];
+    const scriptSourceTexts = new Map<string, string>();
+    this.trace.traceEvents.forEach((event) => {
+      const data = isRecord(event.args?.data) ? (event.args!.data as Record<string, any>) : undefined;
+      const scriptId = canonicalId(data?.scriptId);
+      const sourceText = getNestedString(data?.sourceText);
+      if (!scriptId || sourceText === undefined || scriptSourceTexts.has(scriptId)) return;
+      scriptSourceTexts.set(scriptId, sourceText);
+    });
+    const hashBytes = (value: Buffer | Uint8Array) => createHash("sha256").update(value).digest("hex");
+    const hashText = (value: string) => createHash("sha256").update(value, "utf8").digest("hex");
     this.cachedScreenshots = new Map(screenshots.map((row) => [row.index, row]));
     this.cachedRequestBodies = new Map(requestBodies.map((row) => [row.artifactId, row]));
     const items: ArtifactRef[] = [
@@ -2041,35 +2054,56 @@ class DevtoolsArtifactProvider implements ArtifactProvider {
         mediaType: row.mediaType,
         sizeBytes: row.sizeBytes,
         filenameHint: row.filename,
+        hash: hashBytes(Buffer.from(row.base64, "base64")),
         metadata: { screenshotId: row.screenshotId },
       })),
       ...scripts
         .filter((row) => row.sourceTextArtifactId)
-        .map<ArtifactRef>((row) => ({
-          id: row.sourceTextArtifactId,
-          kind: "text",
-          mediaType: "text/javascript",
-          sizeBytes: row.sourceTextBytes,
-          filenameHint: `${row.scriptId}-${basename(row.url ?? `script-${row.scriptId}`)}`,
-          metadata: { scriptId: row.scriptId, url: row.url },
-        })),
-      ...sourceMaps.map<ArtifactRef>((row) => ({
-        id: row.artifactId,
-        kind: "json",
-        mediaType: "application/source-map+json",
-        filenameHint: `${row.sourceMapId}.json`,
-        metadata: { url: row.url, sourceMapUrl: row.sourceMapUrl },
-      })),
+        .map<ArtifactRef>((row) => {
+          const sourceText = scriptSourceTexts.get(row.scriptId);
+          return {
+            id: row.sourceTextArtifactId!,
+            kind: "text",
+            mediaType: "text/javascript",
+            sizeBytes:
+              sourceText !== undefined ? Buffer.byteLength(sourceText, "utf8") : row.sourceTextBytes,
+            filenameHint: `${row.scriptId}-${basename(row.url ?? `script-${row.scriptId}`)}`,
+            hash: sourceText !== undefined ? hashText(sourceText) : undefined,
+            metadata: { scriptId: row.scriptId, url: row.url },
+          };
+        }),
+      ...sourceMaps.map<ArtifactRef>((row, index) => {
+        const sourceMapEntry = traceSourceMaps[index] ?? null;
+        const sourceMapJson = JSON.stringify(sourceMapEntry);
+        return {
+          id: row.artifactId,
+          kind: "json",
+          mediaType: "application/source-map+json",
+          sizeBytes: Buffer.byteLength(sourceMapJson, "utf8"),
+          filenameHint: `${row.sourceMapId}.json`,
+          hash: hashText(sourceMapJson),
+          metadata: { url: row.url, sourceMapUrl: row.sourceMapUrl },
+        };
+      }),
       ...sources
         .filter((row) => row.artifactId)
-        .map<ArtifactRef>((row) => ({
-          id: row.artifactId,
-          kind: "text",
-          mediaType: "text/plain",
-          sizeBytes: row.sizeBytes,
-          filenameHint: row.sourcePath,
-          metadata: { sourcePath: row.sourcePath },
-        })),
+        .map<ArtifactRef>((row) => {
+          const [, , , mapIndexText, sourceIndexText] = row.artifactId!.split(":");
+          const content = traceSourceMaps[Number(mapIndexText)]?.sourceMap?.sourcesContent?.[
+            Number(sourceIndexText)
+          ];
+          const textContent = typeof content === "string" ? content : undefined;
+          return {
+            id: row.artifactId!,
+            kind: "text",
+            mediaType: "text/plain",
+            sizeBytes:
+              textContent !== undefined ? Buffer.byteLength(textContent, "utf8") : row.sizeBytes,
+            filenameHint: row.sourcePath,
+            hash: textContent !== undefined ? hashText(textContent) : undefined,
+            metadata: { sourcePath: row.sourcePath },
+          };
+        }),
       ...requestBodies.map<ArtifactRef>((row) => ({
         id: row.artifactId,
         kind:
@@ -2077,6 +2111,7 @@ class DevtoolsArtifactProvider implements ArtifactProvider {
         mediaType: row.mediaType,
         sizeBytes: row.sizeBytes,
         filenameHint: row.filename,
+        hash: hashBytes(row.bytes),
         metadata: {
           requestId: row.requestId,
           url: row.url,
