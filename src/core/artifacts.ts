@@ -74,7 +74,8 @@ async function materializeData(
 ): Promise<MaterializedFile> {
   const dir = await workspace.allocExportDir("artifact");
   const ext = guessExtension(artifact.mediaType);
-  const fileName = `${sanitizeFilename(artifact.filenameHint ?? artifact.id)}.${ext}`;
+  const baseName = sanitizeFilename(artifact.filenameHint ?? artifact.id);
+  const fileName = baseName.endsWith(`.${ext}`) ? baseName : `${baseName}.${ext}`;
   const path = join(dir.path, fileName);
   await mkdir(dir.path, { recursive: true });
 
@@ -111,6 +112,21 @@ function bufferFromArtifactData(data: ArtifactData): Buffer {
     return Buffer.from(JSON.stringify(data.json ?? null, null, 2), "utf8");
   }
   return Buffer.from(data.bytes ?? new Uint8Array());
+}
+
+function truncateLargeMetadata(value: unknown): unknown {
+  if (typeof value === "string") {
+    return value.length > 500 ? `[truncated: ${value.length} chars]` : value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => truncateLargeMetadata(entry));
+  }
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [key, truncateLargeMetadata(entry)]),
+  );
 }
 
 const EXPORT_BATCH_SIZE = 50;
@@ -170,6 +186,9 @@ export class FileMaterializer {
 
           return {
             ...item,
+            metadata: item.metadata
+              ? (truncateLargeMetadata(item.metadata) as FileCollectionItem["metadata"])
+              : item.metadata,
             mediaType: artifact.mediaType,
             sizeBytes: artifact.sizeBytes,
           } satisfies FileCollectionItem & { mediaType?: string; sizeBytes?: number };

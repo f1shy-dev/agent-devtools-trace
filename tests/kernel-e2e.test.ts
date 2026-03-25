@@ -1,4 +1,5 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { createHash } from "crypto";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -39,7 +40,7 @@ function sampleTrace(): TracePayload {
             file: "app.js",
             names: [],
             sources: ["src/app.ts"],
-            sourcesContent: ['export const value = 42;'],
+            sourcesContent: ['export const value = "héllo 🌍";'],
             mappings: "",
           },
         },
@@ -70,7 +71,7 @@ function sampleTrace(): TracePayload {
           data: {
             scriptId: 10,
             url: "http://example.com/app.js",
-            sourceText: "console.log('hello from inline source')",
+            sourceText: "console.log('héllo 🌍 from inline source')",
           },
         },
       },
@@ -358,6 +359,49 @@ function sampleTrace(): TracePayload {
         tid: 1,
         ts: 2120,
         args: { id: "frame-1" },
+      },
+    ],
+  };
+}
+
+function artifactEdgeCaseTrace(): TracePayload {
+  const longUrl = `data:text/plain;base64,${Buffer.from("x".repeat(800)).toString("base64")}`;
+  const pngDataUrl = `data:image/png;base64,${Buffer.from("fake-png").toString("base64")}`;
+  return {
+    metadata: {
+      source: "unit-test",
+      startTime: "2026-03-24T00:00:00.000Z",
+    },
+    traceEvents: [
+      {
+        cat: "devtools.timeline",
+        name: "ResourceSendRequest",
+        ph: "I",
+        pid: 1,
+        tid: 1,
+        ts: 1000,
+        args: {
+          data: {
+            requestId: "req-png",
+            url: longUrl,
+            requestMethod: "GET",
+            frame: "frame-1",
+          },
+        },
+      },
+      {
+        cat: "devtools.timeline",
+        name: "ResourceReceivedData",
+        ph: "I",
+        pid: 1,
+        tid: 1,
+        ts: 1010,
+        args: {
+          data: {
+            requestId: "req-png",
+            body: pngDataUrl,
+          },
+        },
       },
     ],
   };
@@ -661,18 +705,36 @@ return {
   });
 
   it("lists artifacts and materializes/exports files", async () => {
-    const file = createTraceFile(sampleTrace());
+    const trace = sampleTrace();
+    const file = createTraceFile(trace);
     const sessionId = await loadSession(file);
 
     const artifactsResponse = await handleRequest(new Request(`http://trace-server/sessions/${sessionId}/artifacts`));
     expect(artifactsResponse.status).toBe(200);
     const artifactsPayload = await parseJson(artifactsResponse);
+    expect(artifactsPayload.artifacts.every((artifact: any) => typeof artifact.hash === "string" && artifact.hash.length === 64)).toBe(true);
     const artifactIds = artifactsPayload.artifacts.map((artifact: any) => artifact.id);
     expect(artifactIds).toContain("artifact:devtools:screenshot:0");
     expect(artifactIds).toContain("artifact:devtools:script:10");
     expect(artifactIds).toContain("artifact:code:sourcemap:0");
     expect(artifactIds).toContain("artifact:code:source:0:0");
     expect(artifactIds).toContain("artifact:devtools:request-body:7:0");
+    const scriptArtifact = artifactsPayload.artifacts.find((artifact: any) => artifact.id === "artifact:devtools:script:10");
+    const sourceArtifact = artifactsPayload.artifacts.find((artifact: any) => artifact.id === "artifact:code:source:0:0");
+    const screenshotArtifact = artifactsPayload.artifacts.find((artifact: any) => artifact.id === "artifact:devtools:screenshot:0");
+    const sourceMapArtifact = artifactsPayload.artifacts.find((artifact: any) => artifact.id === "artifact:code:sourcemap:0");
+    expect(scriptArtifact.sizeBytes).toBe(Buffer.byteLength(String(trace.traceEvents[4]?.args?.data?.sourceText), "utf8"));
+    expect(sourceArtifact.sizeBytes).toBe(
+      Buffer.byteLength(String(trace.metadata?.sourceMaps?.[0]?.sourceMap?.sourcesContent?.[0]), "utf8"),
+    );
+    expect(screenshotArtifact.hash).toBe(
+      createHash("sha256").update(Buffer.from("fake-jpeg")).digest("hex"),
+    );
+    expect(sourceMapArtifact.hash).toBe(
+      createHash("sha256")
+        .update(JSON.stringify(trace.metadata?.sourceMaps?.[0] ?? null), "utf8")
+        .digest("hex"),
+    );
 
     const artifactResponse = await handleRequest(
       new Request(`http://trace-server/sessions/${sessionId}/artifacts/${encodeURIComponent("artifact:devtools:script:10")}`),
@@ -683,7 +745,15 @@ return {
     const artifactContentResponse = await handleRequest(
       new Request(`http://trace-server/sessions/${sessionId}/artifacts/${encodeURIComponent("artifact:devtools:script:10")}/content`),
     );
-    expect(await artifactContentResponse.text()).toContain("inline source");
+    const scriptContent = await artifactContentResponse.text();
+    expect(scriptContent).toContain("inline source");
+    expect(scriptArtifact.sizeBytes).toBe(Buffer.byteLength(scriptContent, "utf8"));
+
+    const sourceContentResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/artifacts/${encodeURIComponent("artifact:code:source:0:0")}/content`),
+    );
+    const sourceContent = await sourceContentResponse.text();
+    expect(sourceArtifact.sizeBytes).toBe(Buffer.byteLength(sourceContent, "utf8"));
 
     const requestBodyContentResponse = await handleRequest(
       new Request(`http://trace-server/sessions/${sessionId}/artifacts/${encodeURIComponent("artifact:devtools:request-body:7:0")}/content`),
@@ -703,6 +773,8 @@ return {
     expect(materializeResponse.status).toBe(200);
     const materializePayload = await parseJson(materializeResponse);
     expect(existsSync(materializePayload.path)).toBe(true);
+    expect(materializePayload.path.endsWith("screenshot-0000.jpg")).toBe(true);
+    expect(materializePayload.path.endsWith(".jpg.jpg")).toBe(false);
     expect(readFileSync(materializePayload.path).toString("utf8")).toContain("fake-jpeg");
 
     const exportResponse = await handleRequest(
@@ -718,7 +790,7 @@ return {
     expect(manifest.collectionId).toBe("code.sources");
     expect(exportPayload.fileCount).toBe(1);
     const exportedSourcePath = join(exportPayload.path, manifest.items[0].relativePath);
-    expect(readFileSync(exportedSourcePath, "utf8")).toContain("export const value = 42");
+    expect(readFileSync(exportedSourcePath, "utf8")).toContain('export const value = "héllo 🌍"');
 
     const leasesResponse = await handleRequest(new Request(`http://trace-server/sessions/${sessionId}/files/leases`));
     const leasesPayload = await parseJson(leasesResponse);
@@ -753,5 +825,43 @@ return {
       new Request(`http://trace-server/sessions/${sessionId}/layers/${encodeURIComponent("devtools/views.framePipeline")}/evict`, { method: "POST" }),
     );
     expect((await parseJson(evictPinnedLayerResponse)).ok).toBe(false);
+  });
+
+  it("materializes png request bodies with media extensions and truncates oversized manifest metadata", async () => {
+    const trace = artifactEdgeCaseTrace();
+    const file = createTraceFile(trace);
+    const sessionId = await loadSession(file);
+
+    const artifactsResponse = await handleRequest(new Request(`http://trace-server/sessions/${sessionId}/artifacts`));
+    const artifactsPayload = await parseJson(artifactsResponse);
+    const pngArtifact = artifactsPayload.artifacts.find(
+      (artifact: any) =>
+        artifact.id.startsWith("artifact:devtools:request-body:") && artifact.mediaType === "image/png",
+    );
+    expect(pngArtifact).toBeTruthy();
+
+    const materializeResponse = await handleRequest(
+      new Request(`http://trace-server/sessions/${sessionId}/artifacts/${encodeURIComponent(pngArtifact.id)}/materialize`, {
+        method: "POST",
+      }),
+    );
+    expect(materializeResponse.status).toBe(200);
+    const materializePayload = await parseJson(materializeResponse);
+    expect(materializePayload.path.endsWith(".png")).toBe(true);
+    expect(materializePayload.path.endsWith(".bin")).toBe(false);
+
+    const exportResponse = await handleRequest(
+      new Request(
+        `http://trace-server/sessions/${sessionId}/files/collections/${encodeURIComponent("devtools.network-bodies")}/export`,
+        { method: "POST" },
+      ),
+    );
+    expect(exportResponse.status).toBe(200);
+    const exportPayload = await parseJson(exportResponse);
+    const manifest = JSON.parse(readFileSync(exportPayload.manifestPath, "utf8"));
+    expect(JSON.stringify(manifest)).not.toContain(trace.traceEvents[0]?.args?.data?.url);
+    expect(
+      manifest.items.some((item: any) => typeof item.metadata?.url === "string" && item.metadata.url.startsWith("[truncated: ")),
+    ).toBe(true);
   });
 });
