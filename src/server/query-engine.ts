@@ -51,6 +51,20 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
   );
 }
 
+function isQueryEnvelope(
+  value: unknown,
+): value is
+  | { __traceServerQueryStatus: "fulfilled"; value: unknown }
+  | { __traceServerQueryStatus: "rejected"; error: unknown } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "__traceServerQueryStatus" in value &&
+    (((value as any).__traceServerQueryStatus === "fulfilled" && "value" in (value as any)) ||
+      ((value as any).__traceServerQueryStatus === "rejected" && "error" in (value as any)))
+  );
+}
+
 async function transpile(source: string): Promise<string> {
   try {
     const result = await transform(source, {
@@ -215,12 +229,29 @@ async function buildQueryScript(code: string, mode: "expression" | "auto-return"
   const statementCode = mode === "auto-return" ? withAutoReturn(code) : code;
   if (mode === "auto-return" && statementCode === null)
     throw new Error("Unable to infer trailing expression");
-  const wrappedCode =
+  const body =
     mode === "expression"
-      ? `(async () => { return (${code}); })()`
+      ? `return (${code});`
       : mode === "auto-return"
-        ? `(async () => { ${statementCode} })()`
-        : `(async () => { ${statementCode}\nreturn undefined; })()`;
+        ? statementCode
+        : `${statementCode}\nreturn undefined;`;
+  const wrappedCode = `
+    (async () => {
+      try {
+        return {
+          __traceServerQueryStatus: "fulfilled",
+          value: await (async () => {
+            ${body}
+          })(),
+        };
+      } catch (error) {
+        return {
+          __traceServerQueryStatus: "rejected",
+          error,
+        };
+      }
+    })()
+  `;
   return new vm.Script(await transpile(wrappedCode));
 }
 
@@ -338,13 +369,15 @@ export async function executeQuery(
     }
     const completion = (async () => {
       if (!isPromiseLike(result)) return result;
+      const handledResult = Promise.resolve(result);
+      handledResult.catch(() => {});
       const queryState: {
         settled: boolean;
         rejected: boolean;
         value?: unknown;
         error?: unknown;
       } = { settled: false, rejected: false };
-      Promise.resolve(result).then(
+      handledResult.then(
         (value) => {
           queryState.settled = true;
           queryState.value = value;
@@ -369,7 +402,15 @@ export async function executeQuery(
       return queryState.value;
     })();
     completion.catch(() => {});
-    return await Promise.race([completion, timer]);
+    timer.catch(() => {});
+    const settled = await Promise.race([completion, timer]);
+    if (isQueryEnvelope(settled)) {
+      if (settled.__traceServerQueryStatus === "rejected") {
+        throw normalizeExecutionError(settled.error, timeout);
+      }
+      return settled.value;
+    }
+    return settled;
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
     abort.abort();

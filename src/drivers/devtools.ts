@@ -5,7 +5,7 @@ import { DatasetSession as DatasetSessionHost } from "../core/dataset-session.js
 import { findEmbeddedBlobs } from "../core/json-introspect.js";
 import { pretty as prettyValue, table as tableValue } from "../core/presentation.js";
 import { sanitizeFilename } from "../core/workspace.js";
-import { readMaybeGzipText } from "../core/io.js";
+import { peekFileText, readMaybeGzipText, streamParseJsonArray } from "../core/io.js";
 import type {
   ArtifactData,
   ArtifactProvider,
@@ -69,6 +69,13 @@ function getTraceBounds(events: TraceEvent[]) {
   };
 }
 
+function extractTraceMetadata(payload: Record<string, unknown>): Record<string, any> {
+  if (isRecord(payload.metadata)) {
+    return payload.metadata as Record<string, any>;
+  }
+  return Object.fromEntries(Object.entries(payload).filter(([key]) => key !== "traceEvents"));
+}
+
 function parseTracePayload(payload: unknown): ParsedTrace {
   if (Array.isArray(payload)) {
     return { metadata: {}, traceEvents: payload as TraceEvent[] };
@@ -80,23 +87,101 @@ function parseTracePayload(payload: unknown): ParsedTrace {
   if (!Array.isArray(traceEvents)) {
     throw new Error("Invalid DevTools trace: missing traceEvents array");
   }
-  const metadata = isRecord(payload.metadata)
-    ? (payload.metadata as Record<string, any>)
-    : Object.fromEntries(Object.entries(payload).filter(([key]) => key !== "traceEvents"));
   return {
-    metadata,
+    metadata: extractTraceMetadata(payload),
     traceEvents: traceEvents as TraceEvent[],
   };
 }
 
 async function parseTraceFile(filePath: string): Promise<ParsedTrace> {
-  const text = await readMaybeGzipText(filePath);
+  const stat = statSync(filePath);
+  const isGzip = filePath.endsWith(".gz");
+  const useStreaming = isGzip ? stat.size > 40 * 1024 * 1024 : stat.size > 256 * 1024 * 1024;
+
+  if (!useStreaming) {
+    const text = await readMaybeGzipText(filePath);
+    try {
+      return parseTracePayload(JSON.parse(text));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to parse DevTools trace: ${message}`);
+    }
+  }
+
   try {
-    return parseTracePayload(JSON.parse(text));
+    const traceEvents: TraceEvent[] = [];
+    const result = await streamParseJsonArray(filePath, {
+      onItem: (item) => traceEvents.push(item as TraceEvent),
+    });
+    return {
+      metadata: extractTraceMetadata(result.prefix),
+      traceEvents,
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to parse DevTools trace: ${message}`);
   }
+}
+
+function isTraceEventLike(value: unknown): value is TraceEvent {
+  return (
+    isRecord(value) &&
+    typeof value.name === "string" &&
+    typeof value.ph === "string" &&
+    typeof value.pid === "number" &&
+    typeof value.ts === "number"
+  );
+}
+
+function extractFirstArrayObject(text: string): string | null {
+  const start = text.indexOf("[");
+  if (start === -1) return null;
+
+  let inString = false;
+  let escape = false;
+  let depth = 0;
+  let objectStart = -1;
+
+  for (let index = start + 1; index < text.length; index += 1) {
+    const char = text[index]!;
+    if (objectStart === -1) {
+      if (/\s/.test(char) || char === ",") continue;
+      if (char !== "{") return null;
+      objectStart = index;
+      depth = 1;
+      continue;
+    }
+
+    if (inString) {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (char === "\\") {
+        escape = true;
+        continue;
+      }
+      if (char === '"') inString = false;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return text.slice(objectStart, index + 1);
+      }
+    }
+  }
+
+  return null;
 }
 
 function getThreadKey(pid: number, tid: number) {
@@ -2369,12 +2454,28 @@ export class DevtoolsDriver implements SourceDriver {
 
   async detect(source: SourceProbe): Promise<SourceDetection | null> {
     if (source.isDirectory) return null;
-    if (!source.path.endsWith(".json") && !source.path.endsWith(".json.gz")) return null;
+    if (
+      !source.path.endsWith(".json") &&
+      !source.path.endsWith(".json.gz") &&
+      !source.path.endsWith(".gz")
+    ) {
+      return null;
+    }
     try {
-      const parsed = JSON.parse(await readMaybeGzipText(source.path));
-      return isRecord(parsed) && Array.isArray(parsed.traceEvents)
-        ? { kind: "devtools", driverId: this.id }
-        : null;
+      const head = await peekFileText(source.path, 64 * 1024);
+      const trimmed = head.trimStart();
+      if (trimmed.startsWith("{") && /"traceEvents"\s*:/.test(head)) {
+        return { kind: "devtools", driverId: this.id };
+      }
+      if (trimmed.startsWith("[")) {
+        const firstObject = extractFirstArrayObject(trimmed);
+        if (!firstObject) return null;
+        const parsed = JSON.parse(firstObject);
+        if (isTraceEventLike(parsed)) {
+          return { kind: "devtools", driverId: this.id };
+        }
+      }
+      return null;
     } catch (error) {
       if (shouldReportDetectionError(error)) throw error;
       return null;
