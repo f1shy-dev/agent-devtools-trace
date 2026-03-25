@@ -1,6 +1,6 @@
 {
   "name": "@vishyfishy2/trace-server",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "type": "module",
   "description": "Unified dataset kernel for traces, telemetry, bundles, and raw data. Built for AI agents.",
   "license": "MIT",
