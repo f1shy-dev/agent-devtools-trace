@@ -3,7 +3,7 @@ name: trace-server
 description: Analyze Chrome DevTools traces and raw JSON datasets through the trace-server dataset kernel. Use this whenever you need to inspect a loaded dataset, discover its schema, run reports, export artifacts, or write custom runtime queries with ds / pretty(...) / table(...).
 metadata:
   author: f1shy-dev
-  version: "0.5.2"
+  version: "0.6.0"
 ---
 
 # trace-server

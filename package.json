@@ -1,6 +1,6 @@
 {
   "name": "@vishyfishy2/trace-server",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "type": "module",
   "description": "Unified dataset kernel for traces, telemetry, bundles, and raw data. Built for AI agents.",
   "license": "MIT",
@@ -29,7 +29,8 @@
     "LICENSE"
   ],
   "bin": {
-    "trace-server": "./dist/cli/index.js"
+    "trace-server": "./dist/cli/index.js",
+    "version": "./version.ts"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
