@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { defineCommand, runMain } from "citty";
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { TraceServerClient } from "./client.js";
 import { handleCommandError } from "./errors.js";
@@ -348,7 +348,12 @@ const main = defineCommand({
         try {
           let code: string;
           if (args.file) {
-            code = readFileSync(resolve(args.file), "utf8");
+            const filePath = resolve(args.file);
+            if (!existsSync(filePath)) {
+              console.error(`Error: File not found: ${filePath}`);
+              process.exit(1);
+            }
+            code = readFileSync(filePath, "utf8");
           } else if (args.code) {
             code = args.code;
           } else {

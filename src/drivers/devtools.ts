@@ -2296,6 +2296,12 @@ function hashFilePath(filePath: string) {
   return createHash("sha256").update(filePath).digest("hex").slice(0, 8);
 }
 
+function shouldReportDetectionError(error: unknown) {
+  if (error instanceof RangeError) return true;
+  if (!(error instanceof Error)) return false;
+  return /heap|memory|allocation/i.test(error.message);
+}
+
 export class DevtoolsDriver implements SourceDriver {
   id = "devtools";
 
@@ -2307,7 +2313,8 @@ export class DevtoolsDriver implements SourceDriver {
       return isRecord(parsed) && Array.isArray(parsed.traceEvents)
         ? { kind: "devtools", driverId: this.id }
         : null;
-    } catch {
+    } catch (error) {
+      if (shouldReportDetectionError(error)) throw error;
       return null;
     }
   }
