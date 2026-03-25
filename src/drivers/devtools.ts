@@ -2,8 +2,10 @@ import { statSync } from "fs";
 import { createHash } from "crypto";
 import { basename } from "path";
 import { DatasetSession as DatasetSessionHost } from "../core/dataset-session.js";
+import { ColumnarStore, ColumnarStoreBuilder } from "../core/columnar-store.js";
 import { findEmbeddedBlobs } from "../core/json-introspect.js";
 import { pretty as prettyValue, table as tableValue } from "../core/presentation.js";
+import { applyTablePlan, columnarApplyPlan, columnarCount } from "../core/table-query.js";
 import { sanitizeFilename } from "../core/workspace.js";
 import { peekFileText, readMaybeGzipText, streamParseJsonArray } from "../core/io.js";
 import type {
@@ -19,7 +21,7 @@ import type {
 } from "../core/types.js";
 import type { ArtifactRef, CapabilityMap } from "../shared/types.js";
 
-interface TraceEvent {
+export interface TraceEvent {
   cat?: string;
   name: string;
   ph: string;
@@ -38,7 +40,7 @@ interface SourceMapEntry {
   sourceMap?: Record<string, any>;
 }
 
-interface ParsedTrace {
+export interface ParsedTrace {
   metadata: Record<string, any>;
   traceEvents: TraceEvent[];
 }
@@ -216,65 +218,134 @@ function canonicalId(value: unknown): string | undefined {
   return undefined;
 }
 
-function buildFacts(trace: ParsedTrace) {
-  return trace.traceEvents.map((event, index) => {
-    const data = isRecord(event.args?.data) ? (event.args!.data as Record<string, any>) : undefined;
-    const endData = isRecord(event.args?.endData)
-      ? (event.args!.endData as Record<string, any>)
-      : undefined;
-    const categories = splitCategories(event.cat);
-    return {
-      eventId: `evt:${index}`,
-      rawIndex: index,
-      name: event.name,
-      phase: event.ph,
-      categories,
-      pid: event.pid,
-      tid: event.tid,
-      threadKey: getThreadKey(event.pid, event.tid),
-      tsUs: event.ts,
-      durUs: event.dur ?? 0,
-      endUs: event.ts + (event.dur ?? 0),
-      id: canonicalId(event.id),
-      flowScope: canonicalId(event.s),
-      args: event.args ?? {},
-      frameId:
-        getNestedString(data?.frame) ??
-        getNestedString((event.args as any)?.frame) ??
-        getNestedString((event.args as any)?.beginData?.frame),
-      requestId: getNestedString(data?.requestId),
-      url:
-        getNestedString(data?.url) ??
-        getNestedString((event.args as any)?.url) ??
-        getNestedString(data?.script_url) ??
-        getNestedString(data?.final_response_url),
-      scriptId: canonicalId(data?.scriptId),
-      interactionId:
-        typeof data?.interactionId === "number" && Number.isFinite(data.interactionId)
-          ? String(data.interactionId)
-          : undefined,
-      frameSeqId:
-        typeof (event.args as any)?.frameSeqId === "number"
-          ? String((event.args as any).frameSeqId)
-          : typeof (event.args as any)?.frame_sequence === "number"
-            ? String((event.args as any).frame_sequence)
-            : typeof data?.frameSeqId === "number"
-              ? String(data.frameSeqId)
-              : undefined,
-      nodeId:
-        typeof data?.nodeId === "number"
-          ? String(data.nodeId)
-          : typeof endData?.nodeId === "number"
-            ? String(endData.nodeId)
+export interface FactEvent {
+  eventId: string;
+  rawIndex: number;
+  name: string;
+  phase: string;
+  categories: string[];
+  pid: number;
+  tid: number;
+  threadKey: string;
+  tsUs: number;
+  durUs: number;
+  endUs: number;
+  id?: string;
+  flowScope?: string;
+  args: Record<string, any>;
+  frameId?: string;
+  requestId?: string;
+  url?: string;
+  scriptId?: string;
+  interactionId?: string;
+  frameSeqId?: string;
+  nodeId?: string;
+  workerId?: string;
+  layerId?: string;
+  sampleTraceId?: string;
+  provenance: { rawIds: string[]; layer: string };
+}
+
+export function buildFactEventRow(event: TraceEvent, index: number): FactEvent {
+  const data = isRecord(event.args?.data) ? (event.args!.data as Record<string, any>) : undefined;
+  const endData = isRecord(event.args?.endData)
+    ? (event.args!.endData as Record<string, any>)
+    : undefined;
+  const categories = splitCategories(event.cat);
+  return {
+    eventId: `evt:${index}`,
+    rawIndex: index,
+    name: event.name,
+    phase: event.ph,
+    categories,
+    pid: event.pid,
+    tid: event.tid,
+    threadKey: getThreadKey(event.pid, event.tid),
+    tsUs: event.ts,
+    durUs: event.dur ?? 0,
+    endUs: event.ts + (event.dur ?? 0),
+    id: canonicalId(event.id),
+    flowScope: canonicalId(event.s),
+    args: event.args ?? {},
+    frameId:
+      getNestedString(data?.frame) ??
+      getNestedString((event.args as any)?.frame) ??
+      getNestedString((event.args as any)?.beginData?.frame),
+    requestId: getNestedString(data?.requestId),
+    url:
+      getNestedString(data?.url) ??
+      getNestedString((event.args as any)?.url) ??
+      getNestedString(data?.script_url) ??
+      getNestedString(data?.final_response_url),
+    scriptId: canonicalId(data?.scriptId),
+    interactionId:
+      typeof data?.interactionId === "number" && Number.isFinite(data.interactionId)
+        ? String(data.interactionId)
+        : undefined,
+    frameSeqId:
+      typeof (event.args as any)?.frameSeqId === "number"
+        ? String((event.args as any).frameSeqId)
+        : typeof (event.args as any)?.frame_sequence === "number"
+          ? String((event.args as any).frame_sequence)
+          : typeof data?.frameSeqId === "number"
+            ? String(data.frameSeqId)
             : undefined,
-      workerId: canonicalId(data?.workerId ?? (event.args as any)?.workerId),
-      layerId: canonicalId(data?.layerId ?? (event.args as any)?.layerId),
-      sampleTraceId: canonicalId(
-        data?.sampleTraceId ?? data?.traceId ?? (event.args as any)?.traceId,
-      ),
-      provenance: { rawIds: [`evt:${index}`], layer: "devtools/facts.events" },
-    };
-  });
+    nodeId:
+      typeof data?.nodeId === "number"
+        ? String(data.nodeId)
+        : typeof endData?.nodeId === "number"
+          ? String(endData.nodeId)
+          : undefined,
+    workerId: canonicalId(data?.workerId ?? (event.args as any)?.workerId),
+    layerId: canonicalId(data?.layerId ?? (event.args as any)?.layerId),
+    sampleTraceId: canonicalId(
+      data?.sampleTraceId ?? data?.traceId ?? (event.args as any)?.traceId,
+    ),
+    provenance: { rawIds: [`evt:${index}`], layer: "devtools/facts.events" },
+  };
+}
+
+export function buildFactsRows(trace: ParsedTrace): FactEvent[] {
+  return trace.traceEvents.map((event, index) => buildFactEventRow(event, index));
+}
+
+export function buildFacts(trace: ParsedTrace): ColumnarStore<FactEvent> {
+  const builder = new ColumnarStoreBuilder<FactEvent>()
+    .addComputedColumn("eventId", (index) => `evt:${index}`)
+    .addNumericColumn("rawIndex", "int32")
+    .addStringColumn("name")
+    .addDictColumn("phase")
+    .addStringArrayColumn("categories")
+    .addNumericColumn("pid", "int32")
+    .addNumericColumn("tid", "int32")
+    .addDictColumn("threadKey")
+    .addNumericColumn("tsUs", "float64")
+    .addNumericColumn("durUs", "float64")
+    .addNumericColumn("endUs", "float64")
+    .addStringColumn("id")
+    .addStringColumn("flowScope")
+    .addRefColumn("args")
+    .addStringColumn("frameId")
+    .addStringColumn("requestId")
+    .addStringColumn("url")
+    .addStringColumn("scriptId")
+    .addStringColumn("interactionId")
+    .addStringColumn("frameSeqId")
+    .addStringColumn("nodeId")
+    .addStringColumn("workerId")
+    .addStringColumn("layerId")
+    .addStringColumn("sampleTraceId")
+    .addComputedColumn("provenance", (index) => ({
+      rawIds: [`evt:${index}`],
+      layer: "devtools/facts.events",
+    }))
+    .beginIncremental(trace.traceEvents.length);
+
+  for (let index = 0; index < trace.traceEvents.length; index += 1) {
+    builder.pushRow(buildFactEventRow(trace.traceEvents[index]!, index));
+  }
+
+  return builder.finalize();
 }
 
 function buildIndexes(events: TraceEvent[]) {
@@ -300,7 +371,7 @@ function buildIndexes(events: TraceEvent[]) {
 
 function buildRequests(trace: ParsedTrace) {
   const requests = new Map<string, any>();
-  const facts = buildFacts(trace);
+  const facts = buildFactsRows(trace);
   for (const fact of facts) {
     if (!fact.requestId) continue;
     let row = requests.get(fact.requestId);
@@ -679,7 +750,7 @@ function buildProcessRows(trace: ParsedTrace) {
 }
 
 function buildFrameRows(trace: ParsedTrace) {
-  const facts = buildFacts(trace).filter((fact) => fact.frameId);
+  const facts = buildFactsRows(trace).filter((fact) => fact.frameId);
   const groups = new Map<string, any>();
   for (const fact of facts) {
     if (!groups.has(fact.frameId!)) {
@@ -711,7 +782,7 @@ function buildFrameRows(trace: ParsedTrace) {
 }
 
 function buildWorkerRows(trace: ParsedTrace) {
-  const facts = buildFacts(trace);
+  const facts = buildFactsRows(trace);
   const threadRows = buildThreadRows(trace);
   const groups = new Map<string, any>();
   facts
@@ -756,7 +827,7 @@ function buildWorkerRows(trace: ParsedTrace) {
 }
 
 function buildLayerRows(trace: ParsedTrace) {
-  const facts = buildFacts(trace).filter((fact) => fact.layerId);
+  const facts = buildFactsRows(trace).filter((fact) => fact.layerId);
   const groups = new Map<string, any>();
   for (const fact of facts) {
     const key = fact.layerId!;
@@ -782,7 +853,7 @@ function buildLayerRows(trace: ParsedTrace) {
 }
 
 function buildInstantFacts(trace: ParsedTrace) {
-  return buildFacts(trace)
+  return buildFactsRows(trace)
     .filter((fact) => ["I", "i", "M", "n"].includes(fact.phase))
     .map((fact) => ({
       ...fact,
@@ -791,7 +862,7 @@ function buildInstantFacts(trace: ParsedTrace) {
 }
 
 function buildSliceFacts(trace: ParsedTrace) {
-  return buildFacts(trace)
+  return buildFactsRows(trace)
     .filter((fact) => fact.phase === "X")
     .map((fact) => ({
       ...fact,
@@ -800,7 +871,7 @@ function buildSliceFacts(trace: ParsedTrace) {
 }
 
 function buildAsyncFlowFacts(trace: ParsedTrace) {
-  return buildFacts(trace)
+  return buildFactsRows(trace)
     .filter(
       (fact) =>
         ["b", "e", "s", "t", "f", "n"].includes(fact.phase) || !!fact.id || !!fact.flowScope,
@@ -813,7 +884,7 @@ function buildAsyncFlowFacts(trace: ParsedTrace) {
 
 function buildObjectLifecycles(trace: ParsedTrace) {
   const groups = new Map<string, any>();
-  buildFacts(trace)
+  buildFactsRows(trace)
     .filter((fact) => fact.id || fact.flowScope)
     .forEach((fact) => {
       const objectId = fact.id ?? fact.flowScope!;
@@ -845,8 +916,8 @@ function buildObjectLifecycles(trace: ParsedTrace) {
 }
 
 function buildSecondaryIndexes(trace: ParsedTrace) {
-  const facts = buildFacts(trace);
-  const build = (keyOf: (fact: ReturnType<typeof buildFacts>[number]) => string | undefined) => {
+  const facts = buildFactsRows(trace);
+  const build = (keyOf: (fact: FactEvent) => string | undefined) => {
     const map = new Map<string, string[]>();
     for (const fact of facts) {
       const key = keyOf(fact);
@@ -1007,7 +1078,7 @@ function buildMainThreadTasks(trace: ParsedTrace) {
       )
       .map(([threadKey]) => threadKey),
   );
-  const facts = buildFacts(trace);
+  const facts = buildFactsRows(trace);
   const factsByThread = new Map<string, any[]>();
   for (const fact of facts) {
     if (!rendererMainThreads.has(fact.threadKey)) continue;
@@ -2730,8 +2801,29 @@ export class DevtoolsDriver implements SourceDriver {
         { name: "interactionId", type: "string" },
       ],
       async rows(sessionRef, options) {
-        const rows = await sessionRef.layers.get<any[]>("devtools/facts.events");
+        const store = await sessionRef.layers.getStored<ColumnarStore<FactEvent> | FactEvent[]>(
+          "devtools/facts.events",
+        );
+        const rows = store instanceof ColumnarStore ? store.toRows() : store;
         return options?.limit ? rows.slice(0, options.limit) : rows;
+      },
+      async query(sessionRef, plan) {
+        const store = await sessionRef.layers.getStored<ColumnarStore<FactEvent> | FactEvent[]>(
+          "devtools/facts.events",
+        );
+        if (store instanceof ColumnarStore) {
+          return columnarApplyPlan(store, plan);
+        }
+        return applyTablePlan(store, plan);
+      },
+      async count(sessionRef, plan) {
+        const store = await sessionRef.layers.getStored<ColumnarStore<FactEvent> | FactEvent[]>(
+          "devtools/facts.events",
+        );
+        if (store instanceof ColumnarStore) {
+          return columnarCount(store, plan);
+        }
+        return applyTablePlan(store, plan).length;
       },
     });
     session.registerTable({

@@ -1,3 +1,4 @@
+import { ColumnarStore } from "./columnar-store.js";
 import type { DatasetSession, LayerContext, LayerSpec } from "./types.js";
 import type { LayerStatusInfo } from "../shared/types.js";
 
@@ -7,6 +8,13 @@ function estimateSizeBytes(value: unknown) {
   } catch {
     return undefined;
   }
+}
+
+function materializeLayerValue<T>(value: T): T {
+  if (value instanceof ColumnarStore) {
+    return value.toRows() as T;
+  }
+  return value;
 }
 
 type ReadyState = {
@@ -45,6 +53,10 @@ export class LayerHost {
   }
 
   async get<T>(key: string, signal?: AbortSignal): Promise<T> {
+    return materializeLayerValue(await this.getStored<T>(key, signal));
+  }
+
+  async getStored<T>(key: string, signal?: AbortSignal): Promise<T> {
     const now = new Date().toISOString();
     const state = this.states.get(key);
     if (state?.status === "ready") {
@@ -118,7 +130,11 @@ export class LayerHost {
         let sizeBytes: number | undefined;
         if (state?.status === "ready") {
           if (!state.sizeBytesEstimated) {
-            state.sizeBytes = estimateSizeBytes(state.value);
+            const value = state.value as { estimateMemoryBytes?: () => number };
+            state.sizeBytes =
+              typeof value?.estimateMemoryBytes === "function"
+                ? value.estimateMemoryBytes()
+                : estimateSizeBytes(state.value);
             state.sizeBytesEstimated = true;
           }
           sizeBytes = state.sizeBytes;

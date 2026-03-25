@@ -243,6 +243,7 @@ export interface DatasetSession {
   layers: {
     register<T>(spec: LayerSpec<T>): void;
     get<T>(key: string, signal?: AbortSignal): Promise<T>;
+    getStored<T>(key: string, signal?: AbortSignal): Promise<T>;
     status(): LayerStatusInfo[];
     evict(key: string): boolean;
     pin(key: string): LayerStatusInfo | null;
