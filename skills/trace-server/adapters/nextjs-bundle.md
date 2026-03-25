@@ -18,7 +18,7 @@ Load the `data/` subdirectory:
 trace-server load .next/diagnostics/analyze/data --alias mynextapp
 ```
 
-Other useful flags:
+Other `next experimental-analyze` flags:
 - `--no-mangling` — disable identifier mangling (for debugging)
 - `--profile` — enable CPU profiling
 - `--port <port>` — set the interactive server port (when not using `--output`)
