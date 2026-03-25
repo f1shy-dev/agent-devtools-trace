@@ -321,7 +321,7 @@ export async function streamParseJsonArray(
   if (mode === "in-array" || itemDepth !== 0 || arrayInString) {
     throw new Error("Invalid DevTools trace: unterminated traceEvents array");
   }
-  if (rootKind === "array") {
+  if ((rootKind as "unknown" | "object" | "array") === "array") {
     return { prefix: {} };
   }
 
