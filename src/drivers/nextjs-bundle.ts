@@ -578,7 +578,6 @@ export class NextjsBundleDriver implements SourceDriver {
       const headerLength = buffer.readUInt32BE(0);
       if (headerLength <= 0 || buffer.length < 4 + headerLength) return null;
       const headerText = buffer.subarray(4, 4 + headerLength).toString("utf8");
-      if (!headerText.startsWith('{"sources":')) return null;
       const parsed = JSON.parse(headerText);
       return isAnalyzeDataHeader(parsed)
         ? { kind: "nextjs-bundle", driverId: this.id }
