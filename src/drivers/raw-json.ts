@@ -2,7 +2,7 @@ import { createHash } from "crypto";
 import { basename } from "path";
 import { DatasetSession } from "../core/dataset-session.js";
 import { pretty as prettyValue } from "../core/presentation.js";
-import { readMaybeGzipText } from "../core/io.js";
+import { peekFileText, readMaybeGzipText } from "../core/io.js";
 import {
   detectTimeLikePaths,
   discoverJsonPaths,
@@ -34,6 +34,70 @@ function hashFilePath(filePath: string) {
 
 async function parseJson(filePath: string) {
   return JSON.parse(await readMaybeGzipText(filePath));
+}
+
+const LARGE_RAW_JSON_GZIP_BYTES = 50 * 1024 * 1024;
+const LARGE_RAW_JSON_BYTES = 500 * 1024 * 1024;
+
+function isTraceEventLike(value: unknown) {
+  return (
+    isRecord(value) &&
+    typeof value.name === "string" &&
+    typeof value.ph === "string" &&
+    typeof value.pid === "number" &&
+    typeof value.ts === "number"
+  );
+}
+
+function extractFirstArrayObject(text: string): string | null {
+  const start = text.indexOf("[");
+  if (start === -1) return null;
+
+  let inString = false;
+  let escape = false;
+  let depth = 0;
+  let objectStart = -1;
+
+  for (let index = start + 1; index < text.length; index += 1) {
+    const char = text[index]!;
+    if (objectStart === -1) {
+      if (/\s/.test(char) || char === ",") continue;
+      if (char !== "{") return null;
+      objectStart = index;
+      depth = 1;
+      continue;
+    }
+
+    if (inString) {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (char === "\\") {
+        escape = true;
+        continue;
+      }
+      if (char === '"') inString = false;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return text.slice(objectStart, index + 1);
+      }
+    }
+  }
+
+  return null;
 }
 
 function tableNameForPath(path: string) {
@@ -264,8 +328,32 @@ export class RawJsonDriver implements SourceDriver {
 
   async detect(source: SourceProbe): Promise<SourceDetection | null> {
     if (source.isDirectory) return null;
-    if (!source.path.endsWith(".json") && !source.path.endsWith(".json.gz")) return null;
+    if (
+      !source.path.endsWith(".json") &&
+      !source.path.endsWith(".json.gz") &&
+      !source.path.endsWith(".gz")
+    ) {
+      return null;
+    }
+    const isGzip = source.path.endsWith(".gz");
+    if (
+      (isGzip && source.sizeBytes > LARGE_RAW_JSON_GZIP_BYTES) ||
+      (!isGzip && source.sizeBytes > LARGE_RAW_JSON_BYTES)
+    ) {
+      console.warn(`Skipping raw-json detection for oversized file: ${source.path}`);
+      return null;
+    }
     try {
+      const head = await peekFileText(source.path, 64 * 1024);
+      const trimmed = head.trimStart();
+      if (trimmed.startsWith("{") && /"traceEvents"\s*:/.test(head)) return null;
+      if (trimmed.startsWith("[")) {
+        const firstObject = extractFirstArrayObject(trimmed);
+        if (firstObject) {
+          const parsed = JSON.parse(firstObject);
+          if (isTraceEventLike(parsed)) return null;
+        }
+      }
       const payload = await parseJson(source.path);
       if (isRecord(payload) && Array.isArray((payload as any).traceEvents)) return null;
       return { kind: "raw-json", driverId: this.id };
