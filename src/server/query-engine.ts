@@ -63,8 +63,8 @@ async function transpile(source: string): Promise<string> {
   } catch (error) {
     const parsed = ts.createSourceFile("query.ts", source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
     if (
-      parsed.parseDiagnostics.some(
-        (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
+      (parsed as any).parseDiagnostics?.some(
+        (diagnostic: ts.Diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
       )
     ) {
       throw error;
