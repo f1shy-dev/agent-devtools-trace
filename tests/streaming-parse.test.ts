@@ -17,7 +17,7 @@ import { RawJsonDriver } from "../src/drivers/raw-json";
 import type { SourceProbe } from "../src/core/types";
 
 const LARGE_TRACE_PATH = "/tmp/town-ought-copy.gz";
-const MEDIUM_TRACE_PATH = "/home/Trace-20260325T143247.json.gz";
+const MEDIUM_TRACE_PATH = "/tmp/Trace-20260325T143247.json.gz";
 const tempDirs: string[] = [];
 const HAS_LARGE_TRACE = existsSync(LARGE_TRACE_PATH);
 const HAS_MEDIUM_TRACE = existsSync(MEDIUM_TRACE_PATH);
@@ -92,11 +92,14 @@ async function streamTrace(filePath: string) {
   };
 }
 
-afterEach(() => {
+afterEach(async () => {
   while (tempDirs.length > 0) {
     const dir = tempDirs.pop();
     if (dir) rmSync(dir, { recursive: true, force: true });
   }
+  global.gc?.();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  global.gc?.();
 });
 
 describe("streaming trace parsing", () => {
@@ -171,6 +174,7 @@ describe("streaming trace parsing", () => {
     expect(factCount).toBe(session.manifest.itemCount);
     expect(afterLoad.rssMB).toBeLessThan(3072);
     expect(afterFacts.rssMB).toBeLessThan(3072);
+    await session.dispose();
   }, 600000);
 
   it.skipIf(!HAS_SMOKE_TRACES)("loads every json.gz trace from /tmp and /home", async () => {
@@ -186,6 +190,7 @@ describe("streaming trace parsing", () => {
         `[smoke] ${filePath} size=${(statSync(filePath).size / 1024 / 1024).toFixed(1)}MB.gz items=${session.manifest.itemCount ?? 0} load=${durationMs.toFixed(1)}ms rss=${after.rssMB}MB heap=${after.heapUsedMB}MB beforeRss=${before.rssMB}MB`,
       );
       expect(session.manifest.itemCount ?? 0).toBeGreaterThan(0);
+      await session.dispose();
     }
   }, 600000);
 

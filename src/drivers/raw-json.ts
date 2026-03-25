@@ -344,8 +344,16 @@ export class RawJsonDriver implements SourceDriver {
       return null;
     }
     try {
-      const head = await peekFileText(source.path, 64 * 1024);
+      const head = await peekFileText(source.path, 4096);
       const trimmed = head.trimStart();
+      if (
+        trimmed.startsWith("{") &&
+        (/"source"\s*:\s*"DevTools"/.test(head) ||
+          /"dataOrigin"\s*:\s*"TraceEvents"/.test(head) ||
+          /"enhancedTraceVersion"\s*:/.test(head))
+      ) {
+        return null;
+      }
       if (trimmed.startsWith("{") && /"traceEvents"\s*:\s*\[/.test(head)) return null;
       if (trimmed.startsWith("[")) {
         const firstObject = extractFirstArrayObject(trimmed);
