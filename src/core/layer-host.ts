@@ -15,6 +15,7 @@ type ReadyState = {
   buildMs?: number;
   lastAccessedAt: string;
   sizeBytes?: number;
+  sizeBytesEstimated?: boolean;
 };
 
 type BuildingState = {
@@ -97,7 +98,6 @@ export class LayerHost {
         value,
         buildMs: Date.now() - started,
         lastAccessedAt: new Date().toISOString(),
-        sizeBytes: estimateSizeBytes(value),
       });
       return value;
     } catch (error) {
@@ -115,12 +115,20 @@ export class LayerHost {
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([key, spec]) => {
         const state = this.states.get(key);
+        let sizeBytes: number | undefined;
+        if (state?.status === "ready") {
+          if (!state.sizeBytesEstimated) {
+            state.sizeBytes = estimateSizeBytes(state.value);
+            state.sizeBytesEstimated = true;
+          }
+          sizeBytes = state.sizeBytes;
+        }
         return {
           key,
           status: state?.status ?? "cold",
           buildMs: state?.status === "ready" ? state.buildMs : undefined,
           lastAccessedAt: state?.lastAccessedAt,
-          sizeBytes: state?.status === "ready" ? state.sizeBytes : undefined,
+          sizeBytes,
           deps: spec.deps ?? [],
           evictable: spec.evictable ?? true,
           pinned: this.pinned.has(key),
