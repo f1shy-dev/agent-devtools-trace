@@ -30,6 +30,13 @@ class RuntimeTableQueryHandle implements TableQueryHandle {
   }
 
   select(columns: string[]) {
+    if (
+      !Array.isArray(columns) ||
+      columns.length === 0 ||
+      columns.some((column) => typeof column !== "string" || column.length === 0)
+    ) {
+      throw new Error("select() requires a non-empty array of column names");
+    }
     return this.query({ select: columns });
   }
 
@@ -46,10 +53,16 @@ class RuntimeTableQueryHandle implements TableQueryHandle {
   }
 
   limit(limit: number) {
+    if (typeof limit !== "number" || !Number.isFinite(limit) || limit < 0) {
+      throw new Error(`limit must be a non-negative number, got: ${limit}`);
+    }
     return this.query({ limit });
   }
 
   offset(offset: number) {
+    if (typeof offset !== "number" || !Number.isFinite(offset) || offset < 0) {
+      throw new Error(`offset must be a non-negative number, got: ${offset}`);
+    }
     return this.query({ offset });
   }
 

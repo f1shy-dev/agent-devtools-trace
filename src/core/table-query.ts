@@ -1,5 +1,19 @@
 import type { TableFilter, TableFilterOp, TableQueryPlan } from "./types.js";
 
+const VALID_FILTER_OPS = new Set<string>([
+  "=",
+  "!=",
+  "in",
+  "contains",
+  "startsWith",
+  "endsWith",
+  ">",
+  ">=",
+  "<",
+  "<=",
+  "between",
+]);
+
 function normalizeDirection(direction: string | undefined) {
   return direction === "desc" ? "desc" : "asc";
 }
@@ -42,23 +56,47 @@ function matchesFilter(value: unknown, filter: TableFilter) {
 }
 
 export function normalizeFilter(column: string, op: TableFilterOp, value: unknown): TableFilter {
+  if (!VALID_FILTER_OPS.has(op)) {
+    throw new Error(
+      `Invalid filter operator: '${op}'. Valid operators: ${[...VALID_FILTER_OPS].join(", ")}`,
+    );
+  }
   if (op === "in") {
     return { column, op, values: Array.isArray(value) ? value : [value] };
   }
   if (op === "between") {
-    if (Array.isArray(value)) {
+    if (Array.isArray(value) && value.length >= 2) {
       return { column, op, lower: value[0], upper: value[1] };
     }
-    if (value && typeof value === "object") {
-      return {
-        column,
-        op,
-        lower: (value as any).lower,
-        upper: (value as any).upper,
-      };
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const obj = value as Record<string, unknown>;
+      if (obj.lower !== undefined && obj.upper !== undefined) {
+        return { column, op, lower: obj.lower, upper: obj.upper };
+      }
     }
+    throw new Error(
+      "'between' filter requires [lower, upper] array or {lower, upper} object",
+    );
   }
   return { column, op, value };
+}
+
+function normalizePlanFilter(filter: TableFilter): TableFilter {
+  if (filter.op === "in") {
+    return normalizeFilter(filter.column, filter.op, filter.values ?? filter.value);
+  }
+  if (filter.op === "between") {
+    if (filter.lower !== undefined && filter.upper !== undefined) {
+      return {
+        column: filter.column,
+        op: filter.op,
+        lower: filter.lower,
+        upper: filter.upper,
+      };
+    }
+    return normalizeFilter(filter.column, filter.op, filter.value);
+  }
+  return normalizeFilter(filter.column, filter.op, filter.value);
 }
 
 export function mergeQueryPlans(base?: TableQueryPlan, extra?: TableQueryPlan): TableQueryPlan {
@@ -73,12 +111,28 @@ export function mergeQueryPlans(base?: TableQueryPlan, extra?: TableQueryPlan): 
 
 export function applyTablePlan(rows: unknown[], plan?: TableQueryPlan) {
   const normalized = plan ?? {};
+  const where = normalized.where?.map(normalizePlanFilter);
   let next = [...rows];
 
-  if (normalized.where && normalized.where.length > 0) {
+  if (where && where.length > 0) {
+    if (next.length > 0) {
+      const firstRow = next[0];
+      if (firstRow && typeof firstRow === "object") {
+        const availableColumns = new Set(Object.keys(firstRow as Record<string, unknown>));
+        for (const filter of where) {
+          if (!availableColumns.has(filter.column)) {
+            throw new Error(
+              `Column '${filter.column}' not found. Available columns: ${[...availableColumns]
+                .slice(0, 10)
+                .join(", ")}`,
+            );
+          }
+        }
+      }
+    }
     next = next.filter((row) => {
       if (!row || typeof row !== "object") return false;
-      return normalized.where!.every((filter) =>
+      return where.every((filter) =>
         matchesFilter((row as Record<string, unknown>)[filter.column], filter),
       );
     });
