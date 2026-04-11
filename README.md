@@ -27,8 +27,8 @@ npm install -g @vishyfishy2/trace-server
 From source:
 
 ```bash
-git clone https://github.com/f1shy-dev/agent-devtools-trace.git
-cd agent-devtools-trace
+git clone https://github.com/f1shy-dev/trace-server.git
+cd trace-server
 npm install
 npm run build
 node dist/cli/index.js --help
