@@ -1814,9 +1814,12 @@ async function buildSummary(session: DatasetSession) {
         }
       }
     });
-    for (const [threadKey, threadName] of threadNames) {
+    for (const threadKey of threads) {
       const [pidText] = threadKey.split(":");
-      if (/worker/i.test(threadName) || /worker/i.test(processNames.get(Number(pidText)) ?? "")) {
+      if (
+        /worker/i.test(threadNames.get(threadKey) ?? "") ||
+        /worker/i.test(processNames.get(Number(pidText)) ?? "")
+      ) {
         workerThreads.add(threadKey);
       }
     }
@@ -2545,19 +2548,24 @@ async function buildCapabilityMap(session: DatasetSession): Promise<CapabilityMa
       );
     }),
     inlineScriptSource: events.some(
-      (event) => getNestedString(event.args?.data?.sourceText) !== undefined,
+      (event) =>
+        canonicalId(event.args?.data?.scriptId) !== undefined &&
+        getNestedString(event.args?.data?.sourceText) !== undefined,
     ),
     sourceMaps: sourceMaps.length > 0,
-    sourceContents: sourceMaps.some((entry) =>
-      Array.isArray(entry.sourceMap?.sourcesContent)
-        ? entry.sourceMap.sourcesContent.some((content) => typeof content === "string")
-        : false,
+    sourceContents: sourceMaps.some(
+      (entry) =>
+        Array.isArray(entry.sourceMap?.sources) &&
+        Array.isArray(entry.sourceMap?.sourcesContent) &&
+        entry.sourceMap.sources.some(
+          (_source, index) => typeof entry.sourceMap?.sourcesContent?.[index] === "string",
+        ),
     ),
     renderUserTiming: events.some((event) =>
       splitCategories(event.cat).includes("blink.user_timing"),
     ),
     layoutShift: events.some((event) => event.name === "LayoutShift"),
-    softNavigation: events.some((event) => event.name === "SoftNavigation"),
+    softNavigation: events.some((event) => event.name.startsWith("SoftNavigation")),
   };
 }
 
