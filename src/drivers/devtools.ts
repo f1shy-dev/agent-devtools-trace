@@ -96,7 +96,7 @@ function parseTracePayload(payload: unknown): ParsedTrace {
 async function parseTraceFile(filePath: string): Promise<ParsedTrace> {
   const stat = statSync(filePath);
   const isGzip = filePath.endsWith(".gz");
-  const useStreaming = isGzip ? stat.size > 40 * 1024 * 1024 : stat.size > 256 * 1024 * 1024;
+  const useStreaming = isGzip || stat.size > 256 * 1024 * 1024;
 
   if (!useStreaming) {
     const text = await readMaybeGzipText(filePath);
@@ -479,6 +479,19 @@ function parseDetail(detail: unknown): Record<string, any> {
   }
 }
 
+function normalizeUserTimingName(name: string | undefined) {
+  return name?.replace(/^[\u200B-\u200D\uFEFF]+/, "");
+}
+
+function getRenderMeasureKind(name: string | undefined, track: string | undefined) {
+  if (track === "Components" || track === "Components ⚛") {
+    return name === "Mount" || name === "Unmount" ? "lifecycle" : "component";
+  }
+  if (track === "React Profile" || track === "React Profile ⚛") return "component";
+  if (track === "Blocking") return "scheduler";
+  return "measure";
+}
+
 function buildRenderMeasures(trace: ParsedTrace) {
   const begins = new Map<string, TraceEvent>();
   trace.traceEvents.forEach((event) => {
@@ -499,14 +512,20 @@ function buildRenderMeasures(trace: ParsedTrace) {
       const properties = Array.isArray(detail.devtools?.properties)
         ? detail.devtools.properties
         : [];
+      const measureName = normalizeUserTimingName(begin?.name);
+      const track = getNestedString(detail.devtools?.track);
+      const kind = getRenderMeasureKind(measureName, track);
       return {
         renderMeasureId: `render:${index}`,
         eventId: `evt:${index}`,
         traceId,
-        componentName: begin?.name ?? undefined,
+        kind,
+        measureName,
+        componentName: kind === "component" ? measureName : undefined,
         tsUs: event.ts,
         durationMs: (event.dur ?? 0) / 1000,
-        track: getNestedString(detail.devtools?.track),
+        track,
+        trackGroup: getNestedString(detail.devtools?.trackGroup),
         tooltipText: getNestedString(detail.devtools?.tooltipText),
         properties,
         propKeys: properties
@@ -518,7 +537,7 @@ function buildRenderMeasures(trace: ParsedTrace) {
         },
       };
     })
-    .filter((row) => row.componentName);
+    .filter((row) => row.measureName);
 }
 
 function buildScripts(trace: ParsedTrace) {
@@ -1556,7 +1575,8 @@ function buildRenderComponentHotspots(
 ) {
   const groups = new Map<string, any>();
   renders.forEach((row) => {
-    const componentName = row.componentName ?? "(unknown)";
+    const componentName = row.componentName;
+    if (!componentName) return;
     if (!groups.has(componentName)) {
       groups.set(componentName, {
         componentName,
@@ -1591,9 +1611,14 @@ function buildInteractionRenders(
     .flatMap((interaction) => {
       const groups = new Map<string, any>();
       renders
-        .filter((row) => row.tsUs >= interaction.startTsUs && row.tsUs <= interaction.endTsUs)
+        .filter(
+          (row) =>
+            row.componentName &&
+            row.tsUs >= interaction.startTsUs &&
+            row.tsUs <= interaction.endTsUs,
+        )
         .forEach((row) => {
-          const componentName = row.componentName ?? "(unknown)";
+          const componentName = row.componentName!;
           if (!groups.has(componentName)) {
             groups.set(componentName, {
               interactionId: interaction.interactionId,
@@ -1710,64 +1735,126 @@ function buildRequestBodies(trace: ParsedTrace, requests: ReturnType<typeof buil
 }
 
 async function buildSummary(session: DatasetSession) {
-  const errors: string[] = [];
-  const getLayer = async <T>(key: string, fallback: T): Promise<T> => {
-    try {
-      return await session.layers.get<T>(key);
-    } catch (error) {
-      errors.push(`${key}: ${error instanceof Error ? error.message : String(error)}`);
-      return fallback;
-    }
-  };
-
   try {
-    const trace = await getLayer<ParsedTrace | null>("devtools/trace", null);
-    const facts = await getLayer<any[]>("devtools/facts.events", []);
-    const indexes = await getLayer<any | null>("devtools/indexes.basic", null);
-    const processes = await getLayer<any[]>("devtools/dims.processes", []);
-    const screenshots = await getLayer<any[]>("devtools/dims.screenshots", []);
-    const requests = await getLayer<any[]>("devtools/dims.requests", []);
-    const requestBodies = await getLayer<any[]>("devtools/dims.requestBodies", []);
-    const interactions = await getLayer<any[]>("devtools/dims.interactions", []);
-    const scripts = await getLayer<any[]>("devtools/dims.scripts", []);
-    const sourceMaps = await getLayer<any[]>("code/dims.sourceMaps", []);
-    const sources = await getLayer<any[]>("code/dims.sources", []);
-    const frames = await getLayer<any[]>("devtools/dims.frames", []);
-    const workers = await getLayer<any[]>("devtools/dims.workers", []);
-    const layoutShifts = await getLayer<any[]>("devtools/dims.layoutShifts", []);
-    const layoutShiftClusters = await getLayer<any[]>("devtools/views.layoutShiftClusters", []);
-    const softNavigations = await getLayer<any[]>("devtools/dims.softNavigations", []);
-    const framePipeline = await getLayer<any[]>("devtools/views.framePipeline", []);
-    const codeHotspots = await getLayer<any[]>("devtools/views.codeHotspots", []);
-    const cpuHotspots = await getLayer<any[]>("devtools/views.cpuHotspots", []);
-    const cpuSamples = await getLayer<any[]>("devtools/facts.cpuSamples", []);
-    const traceEvents = trace?.traceEvents ?? [];
-    const { minTs, maxTs } =
-      traceEvents.length > 0 ? getTraceBounds(traceEvents) : { minTs: 0, maxTs: 0 };
+    const trace = await session.layers.get<ParsedTrace>("devtools/trace");
+    const traceEvents = trace.traceEvents;
+    const categories = new Set<string>();
+    const threads = new Set<string>();
+    const processes = new Set<number>();
+    const requests = new Set<string>();
+    const interactions = new Set<string>();
+    const scripts = new Set<string>();
+    const frames = new Set<string>();
+    const workers = new Set<string>();
+    const workerThreads = new Set<string>();
+    const softNavigations = new Set<string>();
+    const codeHotspots = new Set<string>();
+    const cpuHotspots = new Set<number>();
+    const { threadNames, processNames } = buildThreadMetadata(traceEvents);
+    let screenshots = 0;
+    let networkBodies = 0;
+    let layoutShifts = 0;
+    let frameReports = 0;
+    let cpuSamples = 0;
+
+    traceEvents.forEach((event, index) => {
+      splitCategories(event.cat).forEach((category) => categories.add(category));
+      threads.add(getThreadKey(event.pid, event.tid));
+      processes.add(event.pid);
+      if (event.name === "Screenshot" && typeof event.args?.snapshot === "string") screenshots += 1;
+      const data = isRecord(event.args?.data)
+        ? (event.args!.data as Record<string, any>)
+        : undefined;
+      const requestId = getNestedString(data?.requestId);
+      if (requestId) {
+        requests.add(requestId);
+        networkBodies += findEmbeddedBlobs(data).filter((blob) => blob.path !== "$").length;
+      }
+      const interactionId =
+        typeof data?.interactionId === "number" && Number.isFinite(data.interactionId)
+          ? String(data.interactionId)
+          : undefined;
+      if (event.name === "EventTiming" && data) {
+        interactions.add(
+          interactionId && interactionId !== "0"
+            ? interactionId
+            : `${getNestedString(data.type) ?? "unknown"}@${event.ts}`,
+        );
+      }
+      const scriptId = canonicalId(data?.scriptId);
+      if (scriptId) scripts.add(scriptId);
+      const frameId =
+        getNestedString(data?.frame) ??
+        getNestedString((event.args as any)?.frame) ??
+        getNestedString((event.args as any)?.beginData?.frame);
+      if (frameId) frames.add(frameId);
+      const workerId = canonicalId(data?.workerId ?? (event.args as any)?.workerId);
+      if (workerId) workers.add(workerId);
+      if (event.name === "LayoutShift" && data) layoutShifts += 1;
+      if (event.name.startsWith("SoftNavigation")) {
+        softNavigations.add(
+          canonicalId((event.args as any)?.context?.softNavContextId) ?? `soft-nav:${index}`,
+        );
+      }
+      if (event.name === "PipelineReporter" && isRecord((event.args as any)?.frame_reporter)) {
+        frameReports += 1;
+      }
+      if ((event.name === "FunctionCall" || event.name === "EvaluateScript") && event.ph === "X") {
+        const url =
+          getNestedString(data?.url) ?? getNestedString((event.args as any)?.url) ?? "(unknown)";
+        const functionName = getNestedString(data?.functionName) ?? event.name;
+        codeHotspots.add(`${scriptId ?? "?"}|${url}|${functionName}`);
+      }
+      if (event.name === "ProfileChunk") {
+        const sampleIds = Array.isArray(data?.cpuProfile?.samples) ? data.cpuProfile.samples : [];
+        for (const sampleNodeId of sampleIds) {
+          if (typeof sampleNodeId !== "number") continue;
+          cpuSamples += 1;
+          cpuHotspots.add(sampleNodeId);
+        }
+      }
+    });
+    for (const [threadKey, threadName] of threadNames) {
+      const [pidText] = threadKey.split(":");
+      if (/worker/i.test(threadName) || /worker/i.test(processNames.get(Number(pidText)) ?? "")) {
+        workerThreads.add(threadKey);
+      }
+    }
+    const sourceMaps = Array.isArray(trace.metadata.sourceMaps)
+      ? (trace.metadata.sourceMaps as SourceMapEntry[])
+      : [];
+    const sources = sourceMaps.reduce(
+      (count, entry) =>
+        count + (Array.isArray(entry.sourceMap?.sources) ? entry.sourceMap.sources.length : 0),
+      0,
+    );
+    const layoutShiftClusters = buildLayoutShiftClusters(trace, buildLayoutShifts(trace));
+    const { minTs, maxTs } = getTraceBounds(traceEvents);
     return {
-      ...(errors.length > 0 ? { error: errors.join("; ") } : {}),
       totalEvents: traceEvents.length,
       durationMs: traceEvents.length > 0 ? (maxTs - minTs) / 1000 : 0,
-      categories: indexes?.byCategory?.size ?? 0,
-      threads: indexes?.byThread?.size ?? 0,
-      processes: processes.length,
-      screenshots: screenshots.length,
-      networkRequests: requests.length,
-      networkBodies: requestBodies.length,
-      interactions: interactions.length,
-      scripts: scripts.length,
+      categories: categories.size,
+      threads: threads.size,
+      processes: processes.size,
+      screenshots,
+      networkRequests: requests.size,
+      networkBodies,
+      interactions: interactions.size,
+      scripts: scripts.size,
       sourceMaps: sourceMaps.length,
-      sources: sources.length,
-      frames: frames.length,
-      workers: workers.length,
-      layoutShifts: layoutShifts.length,
+      sources,
+      frames: frames.size,
+      workers:
+        workers.size +
+        [...workerThreads].filter((threadKey) => !workers.has(`thread:${threadKey}`)).length,
+      layoutShifts,
       layoutShiftClusters: layoutShiftClusters.length,
-      softNavigations: softNavigations.length,
-      frameReports: framePipeline.length,
-      codeHotspots: codeHotspots.length,
-      cpuHotspots: cpuHotspots.length,
-      cpuSamples: cpuSamples.length,
-      facts: facts.length,
+      softNavigations: softNavigations.size,
+      frameReports,
+      codeHotspots: codeHotspots.size,
+      cpuHotspots: cpuHotspots.size,
+      cpuSamples,
+      facts: traceEvents.length,
     };
   } catch (error) {
     return {
@@ -2435,25 +2522,37 @@ const requestBodiesCollection: FileCollectionProvider = {
 };
 
 async function buildCapabilityMap(session: DatasetSession): Promise<CapabilityMap> {
-  const [trace, screenshots, scripts, sourceMaps, sources, requestBodies] = await Promise.all([
-    session.layers.get<ParsedTrace>("devtools/trace"),
-    session.layers.get<any[]>("devtools/dims.screenshots"),
-    session.layers.get<any[]>("devtools/dims.scripts"),
-    session.layers.get<any[]>("code/dims.sourceMaps"),
-    session.layers.get<any[]>("code/dims.sources"),
-    session.layers.get<any[]>("devtools/dims.requestBodies"),
-  ]);
+  const trace = await session.layers.get<ParsedTrace>("devtools/trace");
   const events = trace.traceEvents;
+  const sourceMaps = Array.isArray(trace.metadata.sourceMaps)
+    ? (trace.metadata.sourceMaps as SourceMapEntry[])
+    : [];
   return {
-    screenshots: screenshots.length > 0,
+    screenshots: events.some(
+      (event) => event.name === "Screenshot" && typeof event.args?.snapshot === "string",
+    ),
     cpuProfile: events.some((event) => event.name === "ProfileChunk"),
     eventTiming: events.some((event) => event.name === "EventTiming"),
     framePipeline: events.some((event) => event.name === "PipelineReporter"),
     networkTiming: events.some((event) => event.name === "ResourceSendRequest"),
-    networkBodies: requestBodies.length > 0,
-    inlineScriptSource: scripts.some((row) => row.hasSourceText),
+    networkBodies: events.some((event) => {
+      const data = isRecord(event.args?.data)
+        ? (event.args!.data as Record<string, any>)
+        : undefined;
+      return (
+        !!getNestedString(data?.requestId) &&
+        findEmbeddedBlobs(data).some((blob) => blob.path !== "$")
+      );
+    }),
+    inlineScriptSource: events.some(
+      (event) => getNestedString(event.args?.data?.sourceText) !== undefined,
+    ),
     sourceMaps: sourceMaps.length > 0,
-    sourceContents: sources.some((row) => row.hasContent),
+    sourceContents: sourceMaps.some((entry) =>
+      Array.isArray(entry.sourceMap?.sourcesContent)
+        ? entry.sourceMap.sourcesContent.some((content) => typeof content === "string")
+        : false,
+    ),
     renderUserTiming: events.some((event) =>
       splitCategories(event.cat).includes("blink.user_timing"),
     ),
@@ -3138,9 +3237,12 @@ export class DevtoolsDriver implements SourceDriver {
       description: "Parsed render measures derived from blink.user_timing and UserTiming::Measure",
       columns: [
         { name: "renderMeasureId", type: "string" },
+        { name: "kind", type: "string" },
+        { name: "measureName", type: "string" },
         { name: "componentName", type: "string" },
         { name: "durationMs", type: "number", unit: "ms" },
         { name: "track", type: "string" },
+        { name: "trackGroup", type: "string" },
       ],
       async rows(sessionRef, options) {
         const rows = await sessionRef.layers.get<any[]>("devtools/views.renderMeasures");
