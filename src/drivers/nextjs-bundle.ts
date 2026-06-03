@@ -982,7 +982,8 @@ export class NextjsBundleDriver implements SourceDriver {
     session.registerNamespace("nextbundle", {
       report: {
         summary: async () => session.getReport("nextbundle.summary")!.run(session),
-        route: async (args) => session.getReport("nextbundle.route")!.run(session, args as Record<string, unknown>),
+        route: async (args: Record<string, unknown>) =>
+          session.getReport("nextbundle.route")!.run(session, args),
       },
       sources: async () => session.queryTable("nextbundle.dims.sources"),
       modules: async () => session.queryTable("nextbundle.dims.modules"),

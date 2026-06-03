@@ -563,6 +563,110 @@ describe("dataset kernel e2e", () => {
     expect(requestBodiesPayload.rows[0].mediaType).toBe("application/json");
   });
 
+  it("separates React component timings from scheduler and lifecycle measures", async () => {
+    const trace = sampleTrace();
+    trace.traceEvents.push(
+      {
+        cat: "blink.user_timing",
+        name: "Update",
+        ph: "b",
+        pid: 1,
+        tid: 1,
+        ts: 3000,
+        args: {
+          traceId: 200,
+          detail: JSON.stringify({
+            devtools: { track: "Blocking", trackGroup: "Scheduler ⚛" },
+          }),
+        },
+      },
+      {
+        cat: "devtools.timeline",
+        name: "UserTiming::Measure",
+        ph: "X",
+        pid: 1,
+        tid: 1,
+        ts: 3010,
+        dur: 10,
+        args: { sampleTraceId: 200 },
+      },
+      {
+        cat: "blink.user_timing",
+        name: "\u200BBusyList",
+        ph: "b",
+        pid: 1,
+        tid: 1,
+        ts: 3020,
+        args: {
+          traceId: 201,
+          detail: JSON.stringify({ devtools: { track: "Components ⚛" } }),
+        },
+      },
+      {
+        cat: "devtools.timeline",
+        name: "UserTiming::Measure",
+        ph: "X",
+        pid: 1,
+        tid: 1,
+        ts: 3030,
+        dur: 20,
+        args: { sampleTraceId: 201 },
+      },
+      {
+        cat: "blink.user_timing",
+        name: "Mount",
+        ph: "b",
+        pid: 1,
+        tid: 1,
+        ts: 3040,
+        args: {
+          traceId: 202,
+          detail: JSON.stringify({ devtools: { track: "Components ⚛" } }),
+        },
+      },
+      {
+        cat: "devtools.timeline",
+        name: "UserTiming::Measure",
+        ph: "X",
+        pid: 1,
+        tid: 1,
+        ts: 3050,
+        dur: 30,
+        args: { sampleTraceId: 202 },
+      },
+    );
+    const sessionId = await loadSession(createTraceFile(trace));
+
+    const renderMeasures = await handleRequest(
+      new Request(
+        `http://trace-server/sessions/${sessionId}/tables/${encodeURIComponent("devtools.views.renderMeasures")}/query`,
+        { method: "POST" },
+      ),
+    ).then(parseJson);
+    expect(renderMeasures.rows.find((row: any) => row.measureName === "Update").kind).toBe(
+      "scheduler",
+    );
+    expect(renderMeasures.rows.find((row: any) => row.measureName === "BusyList")).toMatchObject({
+      kind: "component",
+      componentName: "BusyList",
+    });
+    expect(renderMeasures.rows.find((row: any) => row.measureName === "Mount").kind).toBe(
+      "lifecycle",
+    );
+
+    const componentHotspots = await handleRequest(
+      new Request(
+        `http://trace-server/sessions/${sessionId}/tables/${encodeURIComponent("devtools.views.renderComponentHotspots")}/query`,
+        { method: "POST" },
+      ),
+    ).then(parseJson);
+    expect(componentHotspots.rows.map((row: any) => row.componentName)).toEqual([
+      "VirtualItem",
+      "ChatBlock",
+      "BusyList",
+    ]);
+  });
+
   it("validates report ids and keeps summary resilient", async () => {
     const file = createTraceFile(sampleTrace());
     const sessionId = await loadSession(file);
@@ -648,9 +752,7 @@ describe("dataset kernel e2e", () => {
     expect(session).toBeTruthy();
     const originalGet = session.layers.get.bind(session.layers);
     session.layers.get = async (key: string, signal?: AbortSignal) => {
-      if (key === "devtools/views.framePipeline") {
-        throw new Error("frame pipeline exploded");
-      }
+      if (key !== "devtools/trace") throw new Error(`summary loaded derived layer: ${key}`);
       return originalGet(key, signal);
     };
 
@@ -662,8 +764,8 @@ describe("dataset kernel e2e", () => {
     expect(summaryResponse.status).toBe(200);
     const summaryPayload = await parseJson(summaryResponse);
     expect(summaryPayload.result.totalEvents).toBe(28);
-    expect(summaryPayload.result.frameReports).toBe(0);
-    expect(summaryPayload.result.error).toContain("frame pipeline exploded");
+    expect(summaryPayload.result.frameReports).toBe(1);
+    expect(summaryPayload.result.error).toBeUndefined();
   });
 
   it("supports querying through the ds runtime", async () => {
